@@ -371,6 +371,7 @@ const (
 
 	// These can happen when a process is 'interactive' by transitioning internally
 	CUT
+	FALCUT
 	SPLIT
 	CALL // (maybe can happen when interactive or not)
 
@@ -395,9 +396,10 @@ var RuleString = map[Rule]string{
 	BRA:  "BRA",
 	DROP: "DROP",
 
-	CUT:   "CUT",
-	CALL:  "CALL",
-	SPLIT: "SPLIT",
+	CUT:    "CUT",
+	FALCUT: "FALCUT",
+	CALL:   "CALL",
+	SPLIT:  "SPLIT",
 
 	DUP: "DUP",
 

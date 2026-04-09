@@ -177,6 +177,8 @@ func (s *scanner) scanLabel(ch rune) (token tok, value string, startPos, endPos 
 		return PUSH, buf.String(), startPos, endPos
 	case "new":
 		return NEW, buf.String(), startPos, endPos
+	case "spawn":
+		return SPAWN, buf.String(), startPos, endPos
 	case "snew":
 		return SNEW, buf.String(), startPos, endPos
 	case "forward":

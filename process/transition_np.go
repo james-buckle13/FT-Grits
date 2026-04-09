@@ -258,7 +258,7 @@ func (f *ReceiveForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	}
 }
 
-// CUT rule (Spawn new process) - provider only
+// CUT rule (Spawn new infallible process) - provider only
 func (f *NewForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of new: %s\n", f.String())
 
@@ -283,12 +283,49 @@ func (f *NewForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 		// newProcessBody.Substitute(f.new_name_c, Name{IsSelf: true})
 		newProcess := NewProcess(newProcessBody, []Name{newChannel}, nil, LINEAR, process.Position)
 
-		re.logProcessf(LOGRULEDETAILS, process, "[new] will create new process with channel %s\n", newChannel.String())
+		re.logProcessf(LOGRULEDETAILS, process, "[new] will create new infallible process with channel %s\n", newChannel.String())
 
 		// Spawn and initiate new process
 		newProcess.SpawnThenTransitionNP(re)
 
 		process.finishedRule(CUT, "[new]", "", re)
+		// Continue executing current process
+		process.transitionLoopNP(re)
+	}
+
+	TransitionInternallyNP(process, newRule, re)
+}
+
+// FALCUT rule (Spawn new fallible process) - provider only
+func (f *SpawnForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	re.logProcessf(LOGRULEDETAILS, process, "transition of new: %s\n", f.String())
+
+	newRule := func() {
+		// This name is indicative only (for debugging), since there shouldn't be more than one process with the same channel name
+		// Although channels may have an ID, processes (i.e. goroutines) are anonymous
+		newChannelIdent := f.spawned_name_c.Ident
+
+		// First create fresh channel (with fake identity of the continuation_c name) to link both processes
+		newChannel := re.CreateFreshChannel(newChannelIdent)
+		newChannel.Type = types.CopyType(f.spawned_name_c.Type)
+		newChannel.ExplicitPolarity = f.spawned_name_c.ExplicitPolarity
+
+		// Substitute reference to this new channel by the actual channel in the current process and new process
+		currentProcessBody := f.continuation_e
+		currentProcessBody.Substitute(f.spawned_name_c, newChannel)
+		process.Body = currentProcessBody
+
+		// Create structure of new process
+		newProcessBody := f.body
+		// newProcessBody.Substitute(f.spawned_name_c, Name{IsSelf: true})
+		newProcess := NewProcess(newProcessBody, []Name{newChannel}, nil, LINEAR, process.Position)
+
+		re.logProcessf(LOGRULEDETAILS, process, "[spawn] will create new fallible process with channel %s\n", newChannel.String())
+
+		// Spawn and initiate new process
+		newProcess.SpawnThenTransitionNP(re)
+
+		process.finishedRule(FALCUT, "[spawn]", "", re)
 		// Continue executing current process
 		process.transitionLoopNP(re)
 	}

@@ -6,6 +6,14 @@ import (
 	"grits/types"
 )
 
+type TypeEnvironment int
+
+const (
+	GAMMA TypeEnvironment = iota
+	DELTA
+	UNKNOWN
+)
+
 // Entry point to typecheck programs
 func Typecheck(processes []*Process, assumedFreeNames []Name, globalEnv *GlobalEnvironment) error {
 	errorChan := make(chan error)
@@ -298,11 +306,15 @@ func typecheckFunctionDefinitions(globalEnv *GlobalEnvironment) error {
 
 	for _, funcDef := range *globalEnv.FunctionDefinitions {
 		gammaNameTypesCtx := produceNameTypesCtx(funcDef.Parameters)
+		// todo JAMES: check what should be the contents of delta
+		deltaNameTypesCtx := make(NamesTypesCtx)
+		// todo JAMES: create a way to obtain ft promise
+		faultTolerancePromise := 0
 		providerType := funcDef.Type
 
 		globalEnv.logf(LOGRULE, "Typechecking function definition %s\n", funcDef.String())
 
-		err := funcDef.Body.typecheckForm(gammaNameTypesCtx, nil, providerType, labelledTypesEnv, functionDefinitionsEnv, globalEnv)
+		err := funcDef.Body.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, nil, providerType, labelledTypesEnv, functionDefinitionsEnv, globalEnv)
 		if err != nil {
 			return fmt.Errorf("(%s) typechecking error in function %s; %s", funcDef.Position.String(), funcDef.String(), err)
 		}
@@ -324,13 +336,17 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 		// Obtain the free name types (to be set as Gamma)
 		freeNames := getFreeNameTypes(processes[i], processes, assumedFreeNames)
 		gammaNameTypesCtx := produceNameTypesCtx(freeNames)
+		// todo JAMES: check what should be the contents of delta
+		deltaNameTypesCtx := make(NamesTypesCtx)
+		// todo JAMES: create a way to obtain ft promise
+		faultTolerancePromise := 0
 		providerType := processes[i].Type
 
 		globalEnv.logf(LOGRULE, "Typechecking process %s\n", processes[i].OutlineString())
 
 		// Run the typechecker
 		// might be a good idea to set the shadowProvider name to processes[i].Providers[0] (when there is only one provider)
-		err := processes[i].Body.typecheckForm(gammaNameTypesCtx, nil, providerType, labelledTypesEnv, functionDefinitionsEnv, globalEnv)
+		err := processes[i].Body.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, nil, providerType, labelledTypesEnv, functionDefinitionsEnv, globalEnv)
 		if err != nil {
 			return fmt.Errorf("(%s) typechecking error in process '%s'; %s", processes[i].Position.String(), processes[i].OutlineString(), err)
 		}
@@ -349,7 +365,9 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 // If a type error is found, typecheckForm returns a TypeError -- if there are no errors, the function succeeds, returning nothing
 
 // typecheckForm uses these parameters:
-// -> gammaNameTypesCtx   	<- Γ: names in context to be used (in case of linearity, ...)
+// -> gammaNameTypesCtx   	<- Γ: names in infallible context to be used (in case of linearity, ...)
+// -> deltaNameTypesCtz 	<- Δ: names in fallible context to be used (in case of linearity, ...)
+// -> faultTolerancePromise	<- level of fault tolerance that the providing process aims to guarantee
 // -> providerShadowName    <- name of the process providing on (nil when name 'self' is used instead)
 // -> providerType    		<- the type of the provider (i.e. type of provider name 'self')
 // -> labelledTypesEnv 		<- [read-only] keeps the mapping of pre-defined types (type A = ...)
@@ -357,7 +375,7 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 // -> globalEnv           	<- [read-only] contains the logging capabilities
 
 // */-*: send w<u, v>
-func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.to_c, providerShadowName) {
 		// MulR: *
 		globalEnv.log(LOGRULEDETAILS, "rule ⊗R (MulR)")
@@ -373,9 +391,11 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 
 		expectedLeftType := providerSendType.Left
 		expectedRightType := providerSendType.Right
-		foundLeftType, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for send
+		foundLeftType, _, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		foundLeftType = types.Unfold(foundLeftType, labelledTypesEnv)
-		foundRightType, errorRight := consumeName(p.continuation_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for send
+		foundRightType, _, errorRight := consumeName(p.continuation_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		foundRightType = types.Unfold(foundRightType, labelledTypesEnv)
 
 		if errorLeft != nil {
@@ -404,7 +424,8 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 		// ImpL: -*
 		globalEnv.log(LOGRULEDETAILS, "rule ⊸L (ImpL)")
 
-		clientType, errorClient := consumeName(p.to_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for send
+		clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
 		}
@@ -420,7 +441,8 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 
 		expectedLeftType := clientReceiveType.Left
 		expectedRightType := clientReceiveType.Right
-		foundLeftType, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for send
+		foundLeftType, _, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		foundRightType, errorRight := consumeNameMaybeSelf(p.continuation_c, providerShadowName, gammaNameTypesCtx, providerType)
 
 		expectedLeftType = types.Unfold(expectedLeftType, labelledTypesEnv)
@@ -467,7 +489,7 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 }
 
 // */-*: <x, y> <- recv w; P
-func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.from_c, providerShadowName) {
 		// ImpR: -*
 		globalEnv.log(LOGRULEDETAILS, "rule ⊸R (ImpR)")
@@ -506,7 +528,8 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerSha
 			return TypeErrorE(polarityError)
 		}
 
-		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, &p.continuation_c, newRightType, labelledTypesEnv, sigma, globalEnv)
+		// todo JAMES: determine how recv makes use of delta and ft promise
+		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, &p.continuation_c, newRightType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
 	} else if isProvider(p.payload_c, providerShadowName) || isProvider(p.continuation_c, providerShadowName) {
@@ -515,7 +538,8 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerSha
 		// MulL: *
 		globalEnv.log(LOGRULEDETAILS, "rule ⊗L (MulL)")
 
-		clientType, errorClient := consumeName(p.from_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for recv
+		clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
 		}
@@ -557,14 +581,15 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerSha
 			return TypeErrorE(polarityError)
 		}
 
-		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+		// todo JAMES: determine how recv makes use of delta and ft promise
+		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
 	}
 }
 
 // Internal/External Choice: w.l<u>
-func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.to_c, providerShadowName) {
 		// IChoiceR: +{label1: T1, ...}
 		globalEnv.log(LOGRULEDETAILS, "rule ⊕R (IChoiceR)")
@@ -582,7 +607,8 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShad
 		continuationType, continuationTypeFound := types.FetchSelectBranch(providerSelectLabelType.Branches, p.label.L)
 
 		if continuationTypeFound {
-			foundContinuationType, errorContinuationType := consumeName(p.continuation_c, gammaNameTypesCtx)
+			// todo JAMES: determine how delta affects name consumption for select
+			foundContinuationType, _, errorContinuationType := consumeName(p.continuation_c, gammaNameTypesCtx, deltaNameTypesCtx)
 
 			if errorContinuationType != nil {
 				return TypeErrorf("error in %s; %s", p.String(), errorContinuationType)
@@ -602,7 +628,8 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShad
 		// EChoiceL: &{label1: T1, ...}
 		globalEnv.log(LOGRULEDETAILS, "rule & (EChoiceL)")
 
-		clientType, errorClient := consumeName(p.to_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for select
+		clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
 		}
@@ -655,7 +682,7 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShad
 }
 
 // Case: case from_c ( branches )
-func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.from_c, providerShadowName) {
 		// EChoiceR: &{label1: T1, ...}
 		globalEnv.log(LOGRULEDETAILS, "rule & (EChoiceR)")
@@ -698,7 +725,8 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 			// Copy gamma so that each branch has its own version
 			newGammaNameTypesCtx := copyContext(gammaNameTypesCtx)
 
-			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, &curBranchForm.payload_c, expectedBranchType.SessionType, labelledTypesEnv, sigma, globalEnv)
+			// todo JAMES: determine how case makes use of delta and ft promise
+			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, &curBranchForm.payload_c, expectedBranchType.SessionType, labelledTypesEnv, sigma, globalEnv)
 
 			if continuationError != nil {
 				return continuationError
@@ -717,7 +745,8 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 		// IChoiceL: +{label1: T1, ...}
 		globalEnv.log(LOGRULEDETAILS, "rule ⊕L (IChoiceL)")
 
-		clientType, errorClient := consumeName(p.from_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for case
+		clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.StringShort(), errorClient)
 		}
@@ -763,7 +792,8 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 				return TypeErrorE(polarityError)
 			}
 
-			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+			// todo JAMES: determine how case makes use of delta and ft promsie
+			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 			if continuationError != nil {
 				return continuationError
@@ -789,12 +819,12 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 }
 
 // Branch: label<payload_c> => continuation_e
-func (p *BranchForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *BranchForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	return TypeErrorf("Cannot typecheck a case/receive branch directly")
 }
 
 // New: continuation_c <- new (body); continuation_e
-func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// Cut
 	globalEnv.log(LOGRULEDETAILS, "rule CUT")
 
@@ -826,16 +856,16 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 		case *CallForm:
 			callForm := p.body.(*CallForm)
 
-			// first split gamma (take parameters from gamma)
-			gammaLeftNameTypesCtx, gammaRightNameTypesCtx, gammaErr := splitGammaCtx(gammaNameTypesCtx, callForm.parameters, nil, labelledTypesEnv)
+			// first split gamma and delta
+			gammaLeftNameTypesCtx, gammaRightNameTypesCtx, deltaLeftNameTypesCtx, deltaRightNameTypesCtx, gammaDeltaErr := splitGammaAndDeltaCtx(gammaNameTypesCtx, deltaNameTypesCtx, callForm.parameters, nil, labelledTypesEnv)
 
 			if new_name_reused {
 				// re-add new name after context splitting
 				gammaRightNameTypesCtx[p.new_name_c.Ident] = NamesType{Type: p.new_name_c.Type}
 			}
 
-			if gammaErr != nil {
-				return TypeErrorf("error when splitting variable context in '%s': %s", p.StringShort(), gammaErr)
+			if gammaDeltaErr != nil {
+				return TypeErrorf("error when splitting variable context in '%s': %s", p.StringShort(), gammaDeltaErr)
 			}
 			// Get function signature (incl. its type)
 			functionSignature, exists := sigma[callForm.functionName]
@@ -853,8 +883,23 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 				return TypeErrorE(err)
 			}
 
+			// Check for declaration of independence: (Δ ⪰ m)
+			// Δ (deltaLeftNameTypesCtx) ⪰ m (type of p.continuation_c)
+			err = declationOfIndependence(deltaLeftNameTypesCtx.getNames(), functionSignatureType)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			// todo JAMES: find a way to obtain ft promise
+			callFaultTolerancePromise := 0
+
+			// performs k >= n check
+			if callFaultTolerancePromise < faultTolerancePromise {
+				return TypeErrorf("Fault tolerance promise of newly created infallible process (%d) is not strong enough to support that of the provider (%d)", callFaultTolerancePromise, faultTolerancePromise)
+			}
+
 			// Typecheck the call function
-			callBodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, &p.new_name_c, functionSignatureType, labelledTypesEnv, sigma, globalEnv)
+			callBodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, callFaultTolerancePromise, &p.new_name_c, functionSignatureType, labelledTypesEnv, sigma, globalEnv)
 
 			if callBodyError != nil {
 				return callBodyError
@@ -864,7 +909,7 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 			gammaRightNameTypesCtx[p.new_name_c.Ident] = NamesType{Type: functionSignatureType}
 
 			// typecheck the continuation body
-			continuationError := p.continuation_e.typecheckForm(gammaRightNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+			continuationError := p.continuation_e.typecheckForm(gammaRightNameTypesCtx, deltaRightNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 			if continuationError != nil {
 				return continuationError
@@ -887,16 +932,16 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 		default:
 			// The type of p.continuation_c has to be provided by the user
 
-			// Split gamma
-			gammaLeftNameTypesCtx, gammaRightNameTypesCtx, gammaErr := splitGammaCtx(gammaNameTypesCtx, p.body.FreeNames(), nil, labelledTypesEnv)
+			// Split gamma and delta
+			gammaLeftNameTypesCtx, gammaRightNameTypesCtx, deltaLeftNameTypesCtx, deltaRightNameTypesCtx, gammaDeltaErr := splitGammaAndDeltaCtx(gammaNameTypesCtx, deltaNameTypesCtx, p.body.FreeNames(), nil, labelledTypesEnv)
 
 			if new_name_reused {
 				// re-add new name after context splitting
 				gammaRightNameTypesCtx[p.new_name_c.Ident] = NamesType{Type: p.new_name_c.Type}
 			}
 
-			if gammaErr != nil {
-				return TypeErrorf("error when splitting variable context in '%s': %s", p.StringShort(), gammaErr)
+			if gammaDeltaErr != nil {
+				return TypeErrorf("error when splitting variable context in '%s': %s", p.StringShort(), gammaDeltaErr)
 			}
 
 			if p.new_name_c.Type == nil {
@@ -915,8 +960,13 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 			// Unfold if needed
 			p.new_name_c.Type = types.Unfold(p.new_name_c.Type, labelledTypesEnv)
 
-			// Check for declaration of independence: Γ ⪰ m ⪰ n
+			// Check for declaration of independence: Γ ⪰ m && Δ ⪰ m && m ⪰ n
 			err = declationOfIndependence(gammaLeftNameTypesCtx.getNames(), p.new_name_c.Type)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			err = declationOfIndependence(deltaLeftNameTypesCtx.getNames(), p.new_name_c.Type)
 			if err != nil {
 				return TypeErrorE(err)
 			}
@@ -927,8 +977,16 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 				return TypeErrorE(err)
 			}
 
+			// todo JAMES: find a way to obtain ft promise
+			newProcessFaultTolerancePromise := 0
+
+			// performs k >= n check
+			if newProcessFaultTolerancePromise < faultTolerancePromise {
+				return TypeErrorf("Fault tolerance promise of newly created infallible process (%d) is not strong enough to support that of the provider (%d)", newProcessFaultTolerancePromise, faultTolerancePromise)
+			}
+
 			// typecheck the body of the process being spawned
-			bodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, &p.new_name_c, p.new_name_c.Type, labelledTypesEnv, sigma, globalEnv)
+			bodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, newProcessFaultTolerancePromise, &p.new_name_c, p.new_name_c.Type, labelledTypesEnv, sigma, globalEnv)
 
 			if bodyError != nil {
 				return bodyError
@@ -944,7 +1002,187 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 			}
 
 			// typecheck the continuation of the cut rule
-			continuationBodyError := p.continuation_e.typecheckForm(gammaRightNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+			continuationBodyError := p.continuation_e.typecheckForm(gammaRightNameTypesCtx, deltaRightNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+
+			if continuationBodyError != nil {
+				return continuationBodyError
+			}
+		}
+
+	} else {
+		// Since it is derived from a macro, then we assume that the continuation_e is an axiomatic rule (e.g. send) instead of the body -- no macros are currently being used
+		panic("todo need to handle macros -- not implemented")
+	}
+
+	return nil
+}
+
+// New: continuation_c <- spawn (body); continuation_e
+func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+	// FalCut
+	globalEnv.log(LOGRULEDETAILS, "rule FALCUT")
+
+	_, new_name_reused := deltaNameTypesCtx[p.spawned_name_c.Ident]
+
+	if !new_name_reused && nameInNames(p.spawned_name_c, p.body.FreeNames()...) {
+		return TypeErrorf("cannot use '%s' in spawned process (%s). Try using 'self' instead.", p.spawned_name_c.String(), p.body.StringShort())
+	}
+
+	if new_name_reused && !nameInNames(p.spawned_name_c, p.body.FreeNames()...) {
+		return TypeErrorf("name '%s' is reassigned before being used in the spawned process (%s).", p.spawned_name_c.String(), p.body.StringShort())
+	}
+
+	// When 'new' is used directly (i.e. not derived from a macro expansion), then we need to ensure
+	// that the body is either a function call, or an axiomatic rule (e.g. send)
+	if !p.derivedFromMacro {
+		// check form of body
+		if FormHasContinuation(p.body) {
+			// Difficult to split gamma, so we show it as ill typed for now
+			return TypeErrorf("cannot determine variable context splitting in '%s'. Expected the body to be a simple axiomatic rule (e.g. send), but found '%s'", p.StringShort(), p.body.String())
+		}
+
+		// We can infer which variables are used when typechecking p.body
+		switch interface{}(p.body).(type) {
+		case *CallForm:
+			callForm := p.body.(*CallForm)
+
+			// first split gamma and delta
+			gammaLeftNameTypesCtx, gammaRightNameTypesCtx, deltaLeftNameTypesCtx, deltaRightNameTypesCtx, gammaDeltaErr := splitGammaAndDeltaCtx(gammaNameTypesCtx, deltaNameTypesCtx, callForm.parameters, nil, labelledTypesEnv)
+
+			if new_name_reused {
+				// re-add new name after context splitting
+				deltaRightNameTypesCtx[p.spawned_name_c.Ident] = NamesType{Type: p.spawned_name_c.Type}
+			}
+
+			if gammaDeltaErr != nil {
+				return TypeErrorf("error when splitting variable context in '%s': %s", p.StringShort(), gammaDeltaErr)
+			}
+			// Get function signature (incl. its type)
+			functionSignature, exists := sigma[callForm.functionName]
+			if !exists {
+				return TypeErrorf("function '%s' is undefined", p.body.String())
+			}
+
+			functionSignatureType := types.CopyType(functionSignature.Type)
+			functionSignatureType = types.Unfold(functionSignatureType, labelledTypesEnv)
+
+			// Check for declaration of independence: (Γ ⪰ m)
+			// Γ (gammaLeftNameTypesCtx) ⪰ m (type of p.continuation_c)
+			err := declationOfIndependence(gammaLeftNameTypesCtx.getNames(), functionSignatureType)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			// Check for declaration of independence: (Δ ⪰ m)
+			// Δ (deltaLeftNameTypesCtx) ⪰ m (type of p.continuation_c)
+			err = declationOfIndependence(deltaLeftNameTypesCtx.getNames(), functionSignatureType)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			// todo JAMES: find a way to obtain ft promise
+			callFaultTolerancePromise := 0
+
+			// Typecheck the call function
+			callBodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, callFaultTolerancePromise, &p.spawned_name_c, functionSignatureType, labelledTypesEnv, sigma, globalEnv)
+
+			if callBodyError != nil {
+				return callBodyError
+			}
+
+			// Add new channel name to delta
+			deltaRightNameTypesCtx[p.spawned_name_c.Ident] = NamesType{Type: functionSignatureType}
+
+			// typecheck the continuation body
+			continuationError := p.continuation_e.typecheckForm(gammaRightNameTypesCtx, deltaRightNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+
+			if continuationError != nil {
+				return continuationError
+			}
+
+			// Set type
+			p.spawned_name_c.Type = functionSignatureType
+
+			// Check for declaration of independence: (m ⪰ n)
+			// m (type of p.continuation_c) ⪰ p (providerType)
+			err = declationOfIndependenceOne(p.spawned_name_c, providerType)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			polarityError := checkExplicitPolarityValidity(p, p.spawned_name_c)
+			if polarityError != nil {
+				return TypeErrorE(polarityError)
+			}
+		default:
+			// The type of p.continuation_c has to be provided by the user
+
+			// Split gamma and delta
+			gammaLeftNameTypesCtx, gammaRightNameTypesCtx, deltaLeftNameTypesCtx, deltaRightNameTypesCtx, gammaDeltaErr := splitGammaAndDeltaCtx(gammaNameTypesCtx, deltaNameTypesCtx, p.body.FreeNames(), nil, labelledTypesEnv)
+
+			if new_name_reused {
+				// re-add new name after context splitting
+				deltaRightNameTypesCtx[p.spawned_name_c.Ident] = NamesType{Type: p.spawned_name_c.Type}
+			}
+
+			if gammaDeltaErr != nil {
+				return TypeErrorf("error when splitting variable context in '%s': %s", p.StringShort(), gammaDeltaErr)
+			}
+
+			if p.spawned_name_c.Type == nil {
+				return TypeErrorf("expected '%s' to have an explicit type in %s", p.spawned_name_c.String(), p.StringShort())
+			}
+
+			// Modify the type of p.continuation_c to set its modalities
+			types.AddMissingModalities(&p.spawned_name_c.Type, labelledTypesEnv)
+
+			// Get type of inner provider
+			err := checkNameType(p.spawned_name_c, labelledTypesEnv)
+			if err != nil {
+				return TypeErrorf("invalid type for %s in %s: %s", p.spawned_name_c.String(), p.StringShort(), err)
+			}
+
+			// Unfold if needed
+			p.spawned_name_c.Type = types.Unfold(p.spawned_name_c.Type, labelledTypesEnv)
+
+			// Check for declaration of independence: Γ ⪰ m && Δ ⪰ m && m ⪰ n
+			err = declationOfIndependence(gammaLeftNameTypesCtx.getNames(), p.spawned_name_c.Type)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			err = declationOfIndependence(deltaLeftNameTypesCtx.getNames(), p.spawned_name_c.Type)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			// m (type of p.continuation_c) ⪰ p (providerType)
+			err = declationOfIndependenceOne(p.spawned_name_c, providerType)
+			if err != nil {
+				return TypeErrorE(err)
+			}
+
+			// todo JAMES: find a way to obtain ft promise
+			newProcessFaultTolerancePromise := 0
+
+			// typecheck the body of the process being spawned
+			bodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, newProcessFaultTolerancePromise, &p.spawned_name_c, p.spawned_name_c.Type, labelledTypesEnv, sigma, globalEnv)
+
+			if bodyError != nil {
+				return bodyError
+			}
+
+			// Add new channel name to delta
+			p.spawned_name_c.Type = types.Unfold(p.spawned_name_c.Type, labelledTypesEnv)
+			deltaRightNameTypesCtx[p.spawned_name_c.Ident] = NamesType{Type: p.spawned_name_c.Type}
+
+			polarityError := checkExplicitPolarityValidity(p, p.spawned_name_c)
+			if polarityError != nil {
+				return TypeErrorE(polarityError)
+			}
+
+			// typecheck the continuation of the cut rule
+			continuationBodyError := p.continuation_e.typecheckForm(gammaRightNameTypesCtx, deltaRightNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 			if continuationBodyError != nil {
 				return continuationBodyError
@@ -960,7 +1198,7 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowN
 }
 
 // 1 : close w
-func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// EndR: 1
 	globalEnv.log(LOGRULEDETAILS, "rule 1R (EndR)")
 
@@ -998,7 +1236,7 @@ func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShado
 }
 
 // 1 : wait w; ...
-func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// EndL: 1
 	globalEnv.log(LOGRULEDETAILS, "rule 1L (EndL)")
 
@@ -1015,7 +1253,8 @@ func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 		}
 	}
 
-	clientType, errorClient := consumeName(p.to_c, gammaNameTypesCtx)
+	// todo JAMES: determine how delta affects name consumption for wait
+	clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 	if errorClient != nil {
 		return TypeErrorf("error in %s; %s", p.String(), errorClient)
 	}
@@ -1034,7 +1273,8 @@ func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 		}
 
 		// Continue checking the remaining process
-		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+		// todo JAMES: determine how wait makes use of delta and ft promise
+		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
 	} else {
@@ -1043,7 +1283,7 @@ func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 }
 
 // fwd w u
-func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// ID: 1
 	globalEnv.log(LOGRULEDETAILS, "rule ID/FWD")
 
@@ -1055,7 +1295,8 @@ func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerSha
 		return TypeErrorf("not forwarding on self (%s). Expected forward to refer to self (fwd %s %s)", p.String(), p.from_c.String(), p.to_c.String())
 	}
 
-	clientType, errorClient := consumeName(p.from_c, gammaNameTypesCtx)
+	// todo JAMES: determine how delta affects name consumption for forward
+	clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 	clientType = types.Unfold(clientType, labelledTypesEnv)
 	if errorClient != nil {
 		return TypeErrorf("error in %s; %s", p.String(), errorClient)
@@ -1089,13 +1330,14 @@ func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerSha
 }
 
 // drop w; ...
-func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// Drop
 	globalEnv.log(LOGRULEDETAILS, "rule DROP")
 
 	// Can only wait for a client (not self)
 	if !isProvider(p.client_c, providerShadowName) {
-		clientType, errorClient := consumeName(p.client_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for drop
+		clientType, _, errorClient := consumeName(p.client_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
 		}
@@ -1111,7 +1353,8 @@ func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 			}
 
 			// Continue checking the remaining process
-			continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+			// todo JAMES: determine how drop makes use of delta and ft promise
+			continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 			return continuationError
 		} else {
@@ -1124,7 +1367,7 @@ func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 }
 
 // f(...)
-func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule CALL")
 
 	// Check that function exists
@@ -1149,7 +1392,8 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 		// Check types of each parameter
 		for i := 1; i < len(p.parameters); i++ {
 
-			foundParamType, paramTypeError := consumeName(p.parameters[i], gammaNameTypesCtx)
+			// todo JAMES: determine how delta affects name consumption for call
+			foundParamType, _, paramTypeError := consumeName(p.parameters[i], gammaNameTypesCtx, deltaNameTypesCtx)
 
 			if paramTypeError != nil {
 				return TypeErrorf("error in %s; %s", p.String(), paramTypeError)
@@ -1185,7 +1429,8 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 
 		// Check types of each parameter
 		for i := 0; i < len(p.parameters); i++ {
-			foundParamType, paramTypeError := consumeName(p.parameters[i], gammaNameTypesCtx)
+			// todo JAMES: determine how delta affects name consumption for call
+			foundParamType, _, paramTypeError := consumeName(p.parameters[i], gammaNameTypesCtx, deltaNameTypesCtx)
 
 			if paramTypeError != nil {
 				return TypeErrorf("error in %s; %s", p.String(), paramTypeError)
@@ -1221,7 +1466,7 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 }
 
 // Split: <channel_one, channel_two> <- recv from_c; P
-func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule SPLIT")
 
 	// Can only wait for a client (not self)
@@ -1229,7 +1474,8 @@ func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShado
 		return TypeErrorf("expected '%s' to have a split a client, not itself ('%s' is acting as self)", p.StringShort(), p.from_c.String())
 	}
 
-	foundType, err := consumeName(p.from_c, gammaNameTypesCtx)
+	// todo JAMES: determine how delta affects name consumption for split
+	foundType, _, err := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 	foundType = types.Unfold(foundType, labelledTypesEnv)
 
 	if err != nil {
@@ -1265,12 +1511,13 @@ func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShado
 	}
 
 	// Continue checking the remaining process
-	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+	// todo JAMES: determine how split makes use of delta and ft promise
+	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 	return continuationError
 }
 
-func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.to_c, providerShadowName) {
 		// Downshift DnSR: \/
 		globalEnv.log(LOGRULEDETAILS, "rule ↓R (DnSR, Cast)")
@@ -1292,7 +1539,8 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 
 		expectedContinuationType := providerDownType.Continuation
 		expectedContinuationType = types.Unfold(expectedContinuationType, labelledTypesEnv)
-		foundContinuationType, errorContinuation := consumeName(p.continuation_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for cast
+		foundContinuationType, _, errorContinuation := consumeName(p.continuation_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		foundContinuationType = types.Unfold(foundContinuationType, labelledTypesEnv)
 
 		if errorContinuation != nil {
@@ -1316,7 +1564,8 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 		// Downshift UpSL: /\
 		globalEnv.log(LOGRULEDETAILS, "rule ↑L (UpSL, Cast)")
 
-		clientType, errorClient := consumeName(p.to_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for cast
+		clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
 		}
@@ -1374,7 +1623,7 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadow
 	return nil
 }
 
-func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.from_c, providerShadowName) {
 		// UpSR: /\
 		globalEnv.log(LOGRULEDETAILS, "rule ↑R (UpSR, Shift)")
@@ -1409,7 +1658,8 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShado
 			return TypeErrorE(polarityError)
 		}
 
-		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, &p.continuation_c, expectedContinuationType, labelledTypesEnv, sigma, globalEnv)
+		// todo JAMES: determine how shift makes use of delta and ft promise
+		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, &p.continuation_c, expectedContinuationType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
 	} else if isProvider(p.continuation_c, providerShadowName) {
@@ -1418,7 +1668,8 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShado
 		// DnSL: \/
 		globalEnv.log(LOGRULEDETAILS, "rule ↓L (DnSL, Shift)")
 
-		clientType, errorClient := consumeName(p.from_c, gammaNameTypesCtx)
+		// todo JAMES: determine how delta affects name consumption for shift
+		clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
 		}
@@ -1459,18 +1710,20 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShado
 			return TypeErrorE(polarityError)
 		}
 
-		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+		// todo JAMES: determine how shift makes use of delta and ft promise
+		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
 	}
 }
 
-func (p *PrintForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *PrintForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// Print
 	globalEnv.log(LOGRULEDETAILS, "rule PRINT")
 
 	// Continue checking the remaining process
-	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+	// todo JAMES: determine how print makes use of delta and ft promsie
+	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 	return continuationError
 }
 
@@ -1589,24 +1842,32 @@ func isProvider(name Name, providerShadowName *Name) bool {
 	return false
 }
 
-// Takes a name from gamma. If the name is not found, then return error
-func consumeName(name Name, gammaNameTypesCtx NamesTypesCtx) (types.SessionType, error) {
+// Takes a name from gamma or delta. If the name is not found, then return error
+func consumeName(name Name, gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx) (types.SessionType, TypeEnvironment, error) {
 
 	if name.IsSelf {
-		return nil, fmt.Errorf("found self, expected a client")
+		return nil, UNKNOWN, fmt.Errorf("found self, expected a client")
 	}
 
-	foundName, ok := gammaNameTypesCtx[name.Ident]
+	foundNameGamma, okGamma := gammaNameTypesCtx[name.Ident]
 
-	if ok {
+	if okGamma {
 		// If linear then remove
 		delete(gammaNameTypesCtx, name.Ident)
 
-		return foundName.Type, nil
+		return foundNameGamma.Type, GAMMA, nil
 	}
 
-	// Problem since the requested name was not found in the gamma
-	return nil, fmt.Errorf("the requested name (%s) is not defined (has no type)", name.String())
+	foundNameDelta, okDelta := deltaNameTypesCtx[name.Ident]
+
+	if okDelta {
+		delete(deltaNameTypesCtx, name.Ident)
+
+		return foundNameDelta.Type, DELTA, nil
+	}
+
+	// Problem since the requested name was not found in neither gamma nor delta
+	return nil, UNKNOWN, fmt.Errorf("the requested name (%s) is not defined (has no type)", name.String())
 }
 
 // Takes a name from gamma. If the name is 'self', then return the provider type instead of fetching it from gamma
@@ -1686,9 +1947,10 @@ func extractUnusedLabels(branches []types.Option, labels map[string]bool) string
 
 // From the gamma context, take the requested names and put them in a separate context
 // The providerShadowName acts as a bound name (i.e. it should be ignored)
-func splitGammaCtx(gammaNameTypesCtx NamesTypesCtx, names []Name, providerShadowName *Name, labelledTypesEnv types.LabelledTypesEnv) (NamesTypesCtx, NamesTypesCtx, error) {
+func splitGammaAndDeltaCtx(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, names []Name, providerShadowName *Name, labelledTypesEnv types.LabelledTypesEnv) (NamesTypesCtx, NamesTypesCtx, NamesTypesCtx, NamesTypesCtx, error) {
 
-	var namesFound []Name
+	var namesFoundGamma []Name
+	var namesFoundDelta []Name
 
 	for _, name := range names {
 
@@ -1696,21 +1958,32 @@ func splitGammaCtx(gammaNameTypesCtx NamesTypesCtx, names []Name, providerShadow
 			continue
 		}
 
-		foundType, err := consumeName(name, gammaNameTypesCtx)
+		foundType, typeEnvironmentContainingName, err := consumeName(name, gammaNameTypesCtx, deltaNameTypesCtx)
 		foundType = types.Unfold(foundType, labelledTypesEnv)
 
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		name.Type = foundType
-		namesFound = append(namesFound, name)
+
+		switch typeEnvironmentContainingName {
+		case GAMMA:
+			namesFoundGamma = append(namesFoundGamma, name)
+		case DELTA:
+			namesFoundDelta = append(namesFoundDelta, name)
+		default: // never reached since in the case of UNKNOWN consumeName returns an error and is caught in the above condition
+			return nil, nil, nil, nil, err
+		}
 	}
 
-	gammaLeftNameTypesCtx := produceNameTypesCtx(namesFound)
+	gammaLeftNameTypesCtx := produceNameTypesCtx(namesFoundGamma)
 	gammaRightNameTypesCtx := gammaNameTypesCtx
 
-	return gammaLeftNameTypesCtx, gammaRightNameTypesCtx, nil
+	deltaLeftNameTypesCtx := produceNameTypesCtx(namesFoundDelta)
+	deltaRightNameTypesCtx := deltaNameTypesCtx
+
+	return gammaLeftNameTypesCtx, gammaRightNameTypesCtx, deltaLeftNameTypesCtx, deltaRightNameTypesCtx, nil
 }
 
 // Ensure that a name has a type linked to it. Check for well formedness of the type.

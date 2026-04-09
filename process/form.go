@@ -20,7 +20,7 @@ type Form interface {
 	Transition(*Process, *RuntimeEnvironment)
 	TransitionNP(*Process, *RuntimeEnvironment)
 	// Main typing judgement
-	typecheckForm(gammaNameTypesCtx NamesTypesCtx, providerShadowName *Name, providerType types.SessionType, a types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError
+	typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, a types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError
 }
 
 ///////////////////////////////
@@ -431,6 +431,66 @@ func (p *NewForm) FreeNames() []Name {
 }
 
 func (p *NewForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	return p.continuation_e.Polarity(fromTypes, globalEnvironment)
+}
+
+// Spawn: spawned_name_c <- spawn (body); continuation_e
+type SpawnForm struct {
+	spawned_name_c   Name
+	body             Form
+	continuation_e   Form
+	derivedFromMacro bool
+}
+
+func NewSpawn(spawned_name_c Name, body, continuation_e Form) *SpawnForm {
+	return &SpawnForm{
+		spawned_name_c:   spawned_name_c,
+		body:             body,
+		continuation_e:   continuation_e,
+		derivedFromMacro: false,
+	}
+}
+
+func (p *SpawnForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString(p.spawned_name_c.String())
+	buf.WriteString(" <- spawn (")
+	buf.WriteString(p.body.String())
+	buf.WriteString("); ")
+	buf.WriteString(p.continuation_e.String())
+	return buf.String()
+}
+
+func (p *SpawnForm) StringShort() string {
+	var buf bytes.Buffer
+	buf.WriteString(p.spawned_name_c.String())
+	buf.WriteString(" <- spawn ...; ...")
+	return buf.String()
+}
+
+func (p *SpawnForm) Substitute(old, new Name) {
+
+	p.body.Substitute(old, new)
+
+	// spawned_name_c is a bound variable only in the continuation (undefined otherwise)
+	if !p.spawned_name_c.Equal(old) {
+		p.continuation_e.Substitute(old, new)
+	}
+}
+
+// given x <- spawn (body); continuation_e,
+// x is a free name in body, but bound in continuation_e
+
+func (p *SpawnForm) FreeNames() []Name {
+	var fn []Name
+	body_free_names := p.body.FreeNames()
+	fn = mergeTwoNamesList(fn, body_free_names)
+	continuation_e_excluding_bound_names := removeBoundName(p.continuation_e.FreeNames(), p.spawned_name_c)
+	fn = mergeTwoNamesList(fn, continuation_e_excluding_bound_names)
+	return fn
+}
+
+func (p *SpawnForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
 	return p.continuation_e.Polarity(fromTypes, globalEnvironment)
 }
 
@@ -971,6 +1031,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.new_name_c.Equal(f2.new_name_c) && EqualForm(f1.body, f2.body) && EqualForm(f1.continuation_e, f2.continuation_e)
 		}
+	case *SpawnForm:
+		f1, ok1 := form1.(*SpawnForm)
+		f2, ok2 := form2.(*SpawnForm)
+
+		if ok1 && ok2 {
+			return f1.spawned_name_c.Equal(f2.spawned_name_c) && EqualForm(f1.body, f2.body) && EqualForm(f1.continuation_e, f2.continuation_e)
+		}
 	case *ForwardForm:
 		f1, ok1 := form1.(*ForwardForm)
 		f2, ok2 := form2.(*ForwardForm)
@@ -1098,6 +1165,13 @@ func CopyForm(orig Form) Form {
 			cont := CopyForm(p.continuation_e)
 			return NewNew(*p.new_name_c.Copy(), body, cont)
 		}
+	case *SpawnForm:
+		p, ok := orig.(*SpawnForm)
+		if ok {
+			body := CopyForm(p.body)
+			cont := CopyForm(p.continuation_e)
+			return NewNew(*p.spawned_name_c.Copy(), body, cont)
+		}
 	case *ForwardForm:
 		p, ok := orig.(*ForwardForm)
 		if ok {
@@ -1173,6 +1247,7 @@ func FormHasContinuation(form Form) bool {
 		// -> CaseForm:
 		// -> BranchForm:
 		// -> NewForm:
+		// -> SpawnForm
 		// -> SplitForm:
 		// -> WaitForm:
 		// -> ShiftForm:

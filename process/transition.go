@@ -286,7 +286,7 @@ func (f *ReceiveForm) Transition(process *Process, re *RuntimeEnvironment) {
 	}
 }
 
-// CUT rule (Spawn new process) - provider only
+// CUT rule (Spawn new infallible process) - provider only
 func (f *NewForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of new: %s\n", f.String())
 
@@ -313,12 +313,52 @@ func (f *NewForm) Transition(process *Process, re *RuntimeEnvironment) {
 		// newProcessBody.Substitute(f.new_name_c, Name{IsSelf: true, Ident: f.new_name_c.Ident, Type: innerSessionType}) // todo include polarity in name f.continuation_c.Polarity()
 		newProcess := NewProcess(newProcessBody, []Name{newChannel}, innerSessionType, LINEAR, process.Position)
 
-		re.logProcessf(LOGRULEDETAILS, process, "[new] will create new process with channel %s\n", newChannel.String())
+		re.logProcessf(LOGRULEDETAILS, process, "[new] will create new infallible process with channel %s\n", newChannel.String())
 
 		// Spawn and initiate new process
 		newProcess.SpawnThenTransition(re)
 
 		process.finishedRule(CUT, "[new]", "", re)
+
+		// Continue executing current process
+		process.transitionLoop(re)
+	}
+
+	TransitionInternally(process, newRule, re)
+}
+
+// FALCUT rule (Spawn new fallible process) - provider only
+func (f *SpawnForm) Transition(process *Process, re *RuntimeEnvironment) {
+	re.logProcessf(LOGRULEDETAILS, process, "transition of spawn: %s\n", f.String())
+
+	newRule := func() {
+		// This name is indicative only (for debugging), since there shouldn't be more than one process with the same channel name
+		// Although channels may have an ID, processes (i.e. goroutines) are anonymous
+		newChannelIdent := f.spawned_name_c.Ident
+
+		// First create fresh channel (with fake identity of the continuation_c name) to link both processes
+		newChannel := re.CreateFreshChannel(newChannelIdent)
+		newChannel.Type = types.CopyType(f.spawned_name_c.Type)
+		newChannel.ExplicitPolarity = f.spawned_name_c.ExplicitPolarity
+
+		// Substitute reference to this new channel by the actual channel in the current process and new process
+		currentProcessBody := f.continuation_e
+		currentProcessBody.Substitute(f.spawned_name_c, newChannel)
+		process.Body = currentProcessBody
+
+		// Create structure of new process
+		newProcessBody := f.body
+		innerSessionType := types.CopyType(f.spawned_name_c.Type)
+		// Since a spawned process can only refer to itself via 'self', then we shouldn't substitute spawned_name_c
+		// newProcessBody.Substitute(f.spawned_name_c, Name{IsSelf: true, Ident: f.spawned_name_c.Ident, Type: innerSessionType}) // todo include polarity in name f.continuation_c.Polarity()
+		newProcess := NewProcess(newProcessBody, []Name{newChannel}, innerSessionType, LINEAR, process.Position)
+
+		re.logProcessf(LOGRULEDETAILS, process, "[spawn] will create new fallible process with channel %s\n", newChannel.String())
+
+		// Spawn and initiate new process
+		newProcess.SpawnThenTransition(re)
+
+		process.finishedRule(FALCUT, "[spawn]", "", re)
 
 		// Continue executing current process
 		process.transitionLoop(re)

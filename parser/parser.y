@@ -27,7 +27,7 @@ import (
 	polarity 		      types.Polarity
 }
 
-%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE LET IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC
+%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE LET IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC SPAWN
 %type <strval> LABEL
 %type <statements> statements 
 %type <common_type> process_def
@@ -106,7 +106,11 @@ expression : /* Send */ SEND name LANGLE name COMMA name RANGLE
 		   | /* New */ name LEFT_ARROW NEW expression SEQUENCE expression 
 					{ $$ = process.NewNew($1, $4, $6) } 
 		   | /* New */ LABEL COLON session_type LEFT_ARROW NEW expression SEQUENCE expression 
-					{ $$ = process.NewNew(process.Name{Ident: $1, Type: $3, IsSelf: false}, $6, $8) } 		   
+					{ $$ = process.NewNew(process.Name{Ident: $1, Type: $3, IsSelf: false}, $6, $8) }		   
+		   | /* Spawn */ name LEFT_ARROW SPAWN expression SEQUENCE expression 
+					{ $$ = process.NewSpawn($1, $4, $6) } 
+		   | /* Spawn */ LABEL COLON session_type LEFT_ARROW SPAWN expression SEQUENCE expression 
+					{ $$ = process.NewSpawn(process.Name{Ident: $1, Type: $3, IsSelf: false}, $6, $8) }
 		   | /* Call */ LABEL LPAREN optional_names RPAREN
 		   			{ $$ = process.NewCall($1, $3) }
 		   | /* Close */ CLOSE name
