@@ -776,6 +776,10 @@ func (f *ForwardForm) Transition(process *Process, re *RuntimeEnvironment) {
 	}
 }
 
+func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
+	// todo JAMES: populate transition function for Sync
+}
+
 func (f *SplitForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of split: %s\n", f.String())
 

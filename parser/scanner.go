@@ -206,6 +206,8 @@ func (s *scanner) scanLabel(ch rune) (token tok, value string, startPos, endPos 
 	case "print":
 		// Debug keyword
 		return PRINT, buf.String(), startPos, endPos
+	case "sync":
+		return SYNC, buf.String(), startPos, endPos
 	}
 	return LABEL, buf.String(), startPos, endPos
 }

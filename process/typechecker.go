@@ -1465,6 +1465,74 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	return nil
 }
 
+// Sync: bridge_c <- sync <channels_to_be_synced>; continuation_e
+func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+	globalEnv.log(LOGRULEDETAILS, "rule SYNC")
+
+	if len(p.channels_to_be_synced) < 1 {
+		return TypeErrorf("expected '%s' to sync at least one dependency, but found 0", p.StringShort())
+	}
+
+	// handles k > n check in the SYNC rule
+	if len(p.channels_to_be_synced) <= faultTolerancePromise {
+		return TypeErrorf("cannot guarantee the specified fault tolerance promise as not enough dependencies being synced, required at least %d + 1 dependencies", faultTolerancePromise)
+	}
+
+	providedTypesOfSyncedChans := make([]types.SessionType, len(p.channels_to_be_synced))
+
+	for _, fallibleChannel := range p.channels_to_be_synced {
+		// Can only wait for a client (not self)
+		if isProvider(fallibleChannel, providerShadowName) {
+			return TypeErrorf("expected '%s' to sync a dependency, not itself ('%s' is acting as self)", p.StringShort(), fallibleChannel.String())
+		}
+
+		foundType, typeEnvironment, err := consumeName(fallibleChannel, gammaNameTypesCtx, deltaNameTypesCtx)
+
+		if typeEnvironment != DELTA {
+			return TypeErrorf("expected fallible dependency '%s' to be found in Δ but it wasn't", fallibleChannel.String())
+		}
+
+		foundType = types.Unfold(foundType, labelledTypesEnv)
+
+		providedTypesOfSyncedChans = append(providedTypesOfSyncedChans, foundType)
+
+		if err != nil {
+			return TypeErrorE(err)
+		}
+	}
+
+	if !allTypesBeingSyncedAreEqual(providedTypesOfSyncedChans, labelledTypesEnv) {
+		return TypeErrorf("expected '%s' to sync dependencies of the same type", p.StringShort())
+	}
+
+	// if types of channels being synced are equal, then this variable is used as the type of the bridge channel
+	typeOfSyncedChans := providedTypesOfSyncedChans[0]
+
+	// the bridge channel is infallible so we check in gamma
+	if nameTypeExists(gammaNameTypesCtx, p.bridge_c.Ident) {
+		return TypeErrorf("variable name '%s' already defined. Use a unique name", p.bridge_c.String())
+	}
+
+	// adding the infallible bridge channel to gamma
+	gammaNameTypesCtx[p.bridge_c.Ident] = NamesType{Type: typeOfSyncedChans}
+
+	// setting the types
+	p.bridge_c.Type = typeOfSyncedChans
+	for i := range p.channels_to_be_synced {
+		p.channels_to_be_synced[i].Type = typeOfSyncedChans
+	}
+
+	combinedNamesForPolarityCheck := append(p.channels_to_be_synced, p.bridge_c)
+	polarityError := checkExplicitPolarityValidity(p, combinedNamesForPolarityCheck...)
+	if polarityError != nil {
+		return TypeErrorE(polarityError)
+	}
+
+	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+
+	return continuationError
+}
+
 // Split: <channel_one, channel_two> <- recv from_c; P
 func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule SPLIT")
@@ -2052,4 +2120,19 @@ func checkExplicitPolarityValidity(p Form, names ...Name) error {
 	}
 
 	return nil
+}
+
+// Check if all types of the channels being synced are equal
+func allTypesBeingSyncedAreEqual(input []types.SessionType, labelledTypesEnv types.LabelledTypesEnv) bool {
+	if len(input) <= 1 {
+		return true
+	}
+
+	for i := 1; i < len(input); i++ {
+		if !types.EqualType(input[0], input[i], labelledTypesEnv) {
+			return false
+		}
+	}
+
+	return true
 }

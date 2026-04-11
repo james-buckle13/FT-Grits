@@ -967,6 +967,77 @@ func (p *PrintForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironmen
 	return p.continuation_e.Polarity(fromTypes, globalEnvironment)
 }
 
+// Sync: bridge_c <- sync <channels_to_be_synced>; continuation_e
+type SyncForm struct {
+	bridge_c              Name
+	channels_to_be_synced []Name
+	continuation_e        Form
+}
+
+func NewSync(bridge_c Name, channels_to_be_synced []Name, continuation_e Form) *SyncForm {
+	return &SyncForm{
+		bridge_c:              bridge_c,
+		channels_to_be_synced: channels_to_be_synced,
+		continuation_e:        continuation_e,
+	}
+}
+
+func (p *SyncForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString(p.bridge_c.String())
+	buf.WriteString("<- sync <")
+	for i, fallible_chan := range p.channels_to_be_synced {
+		buf.WriteString(fallible_chan.String())
+
+		if i < len(p.channels_to_be_synced)-1 {
+			buf.WriteString(", ")
+		}
+	}
+	buf.WriteString(">; ")
+	buf.WriteString(p.continuation_e.String())
+	return buf.String()
+}
+
+func (p *SyncForm) StringShort() string {
+	var buf bytes.Buffer
+	buf.WriteString(p.bridge_c.String())
+	buf.WriteString("<- sync <")
+	for i, fallibleChan := range p.channels_to_be_synced {
+		buf.WriteString(fallibleChan.String())
+
+		if i < len(p.channels_to_be_synced)-1 {
+			buf.WriteString(", ")
+		}
+	}
+	buf.WriteString(">; ...")
+	return buf.String()
+}
+
+func (p *SyncForm) Substitute(old, new Name) {
+	for _, fallibleChan := range p.channels_to_be_synced {
+		fallibleChan.Substitute(old, new)
+	}
+
+	if !p.bridge_c.Equal(old) {
+		p.continuation_e.Substitute(old, new)
+	}
+}
+
+func (p *SyncForm) FreeNames() []Name {
+	var fn []Name
+	for _, fallibleChan := range p.channels_to_be_synced {
+		fn = appendIfNotSelf(fallibleChan, fn)
+	}
+	continuation_e_excluding_bound_names := removeBoundName(p.continuation_e.FreeNames(), p.bridge_c)
+	fn = mergeTwoNamesList(fn, continuation_e_excluding_bound_names)
+	return fn
+}
+
+func (p *SyncForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	// Get polarity from continuation
+	return p.continuation_e.Polarity(fromTypes, globalEnvironment)
+}
+
 // Check equality between different forms
 func EqualForm(form1, form2 Form) bool {
 	a := reflect.TypeOf(form1)
@@ -1108,6 +1179,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.label.Equal(f2.label) && EqualForm(f1.continuation_e, f2.continuation_e)
 		}
+	case *SyncForm:
+		f1, ok1 := form1.(*SyncForm)
+		f2, ok2 := form2.(*SyncForm)
+
+		if ok1 && ok2 {
+			return f1.bridge_c.Equal(f2.bridge_c) && areChansToBeSyncedEqual(f1.channels_to_be_synced, f2.channels_to_be_synced) && EqualForm(f1.continuation_e, f2.continuation_e)
+		}
 	}
 
 	fmt.Printf("todo implement EqualForm for type %s\n", a)
@@ -1170,7 +1248,7 @@ func CopyForm(orig Form) Form {
 		if ok {
 			body := CopyForm(p.body)
 			cont := CopyForm(p.continuation_e)
-			return NewNew(*p.spawned_name_c.Copy(), body, cont)
+			return NewSpawn(*p.spawned_name_c.Copy(), body, cont)
 		}
 	case *ForwardForm:
 		p, ok := orig.(*ForwardForm)
@@ -1215,6 +1293,18 @@ func CopyForm(orig Form) Form {
 			body := CopyForm(p.continuation_e)
 			return NewDrop(*p.client_c.Copy(), body)
 		}
+	case *SyncForm:
+		p, ok := orig.(*SyncForm)
+		if ok {
+			cont := CopyForm(p.continuation_e)
+
+			channelsToBeSyncedCopy := make([]Name, len(p.channels_to_be_synced))
+			for i, original := range p.channels_to_be_synced {
+				channelsToBeSyncedCopy[i] = *original.Copy()
+			}
+
+			return NewSync(*p.bridge_c.Copy(), channelsToBeSyncedCopy, cont)
+		}
 	// Debug
 	case *PrintForm:
 		p, ok := orig.(*PrintForm)
@@ -1252,6 +1342,7 @@ func FormHasContinuation(form Form) bool {
 		// -> WaitForm:
 		// -> ShiftForm:
 		// -> DropForm:
+		// -> SyncForm:
 		// -> PrintForm:
 		return true
 	}
@@ -1309,4 +1400,18 @@ func mergeTwoNamesList(names1, names2 []Name) []Name {
 		}
 	}
 	return names1
+}
+
+func areChansToBeSyncedEqual(channelsToBeSynced1, channelsToBeSynced2 []Name) bool {
+	if len(channelsToBeSynced1) != len(channelsToBeSynced2) {
+		return false
+	}
+
+	for i := range channelsToBeSynced1 {
+		if !channelsToBeSynced1[i].Equal(channelsToBeSynced2[i]) {
+			return false
+		}
+	}
+
+	return true
 }
