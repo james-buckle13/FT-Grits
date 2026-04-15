@@ -15,8 +15,9 @@ const (
 
 // scanner is a lexical scanner.
 type scanner struct {
-	r   *bufio.Reader
-	pos TokenPos
+	r         *bufio.Reader
+	pos       TokenPos
+	lastToken tok
 }
 
 // newScanner returns a new instance of Scanner.
@@ -66,39 +67,59 @@ func (s *scanner) Scan() (token tok, value string, startPos, endPos TokenPos) {
 
 	switch ch {
 	case eof:
+		s.lastToken = 0
 		return 0, "", startPos, endPos
 	case '>':
+		s.lastToken = RANGLE
 		return RANGLE, string(ch), startPos, endPos
 	case '(':
+		s.lastToken = LPAREN
 		return LPAREN, string(ch), startPos, endPos
 	case ')':
+		s.lastToken = RPAREN
 		return RPAREN, string(ch), startPos, endPos
 	case '[':
+		s.lastToken = LSBRACK
 		return LSBRACK, string(ch), startPos, endPos
 	case ']':
+		s.lastToken = RSBRACK
 		return RSBRACK, string(ch), startPos, endPos
 	case '{':
+		s.lastToken = LCBRACK
 		return LCBRACK, string(ch), startPos, endPos
 	case '}':
+		s.lastToken = RCBRACK
 		return RCBRACK, string(ch), startPos, endPos
 	case '.':
+		s.lastToken = DOT
 		return DOT, string(ch), startPos, endPos
 	case ';':
+		s.lastToken = SEQUENCE
 		return SEQUENCE, string(ch), startPos, endPos
 	case ':':
+		s.lastToken = COLON
 		return COLON, string(ch), startPos, endPos
 	case '|':
+		s.lastToken = PIPE
 		return PIPE, string(ch), startPos, endPos
 	case ',':
+		s.lastToken = COMMA
 		return COMMA, string(ch), startPos, endPos
 	case '+':
+		s.lastToken = PLUS
 		return PLUS, string(ch), startPos, endPos
 	case '*':
+		s.lastToken = TIMES
 		return TIMES, string(ch), startPos, endPos
 	case '&':
+		s.lastToken = AMPERSAND
 		return AMPERSAND, string(ch), startPos, endPos
 	case '%':
+		s.lastToken = PERCENTAGE
 		return PERCENTAGE, string(ch), startPos, endPos
+	case '@':
+		s.lastToken = AT
+		return AT, string(ch), startPos, endPos
 	}
 
 	if s.consumeIfComment(ch) {
@@ -138,77 +159,113 @@ func (s *scanner) scanLabel(ch rune) (token tok, value string, startPos, endPos 
 
 	switch buf.String() {
 	case "send":
+		s.lastToken = SEND
 		return SEND, buf.String(), startPos, endPos
 	case "recv":
+		s.lastToken = RECEIVE
 		return RECEIVE, buf.String(), startPos, endPos
 	case "receive":
+		s.lastToken = RECEIVE
 		return RECEIVE, buf.String(), startPos, endPos
 	case "case":
+		s.lastToken = CASE
 		return CASE, buf.String(), startPos, endPos
 	case "close":
+		s.lastToken = CLOSE
 		return CLOSE, buf.String(), startPos, endPos
 	case "wait":
+		s.lastToken = WAIT
 		return WAIT, buf.String(), startPos, endPos
 	case "cast":
+		s.lastToken = CAST
 		return CAST, buf.String(), startPos, endPos
 	case "shift":
+		s.lastToken = SHIFT
 		return SHIFT, buf.String(), startPos, endPos
 	case "accept":
+		s.lastToken = ACCEPT
 		return ACCEPT, buf.String(), startPos, endPos
 	case "acc":
+		s.lastToken = ACCEPT
 		return ACCEPT, buf.String(), startPos, endPos
 	case "acquire":
+		s.lastToken = ACQUIRE
 		return ACQUIRE, buf.String(), startPos, endPos
 	case "acq":
+		s.lastToken = ACQUIRE
 		return ACQUIRE, buf.String(), startPos, endPos
 	case "detach":
+		s.lastToken = DETACH
 		return DETACH, buf.String(), startPos, endPos
 	case "det":
+		s.lastToken = DETACH
 		return DETACH, buf.String(), startPos, endPos
 	case "release":
+		s.lastToken = RELEASE
 		return RELEASE, buf.String(), startPos, endPos
 	case "rel":
+		s.lastToken = RELEASE
 		return RELEASE, buf.String(), startPos, endPos
 	case "drop":
+		s.lastToken = DROP
 		return DROP, buf.String(), startPos, endPos
 	case "split":
+		s.lastToken = SPLIT
 		return SPLIT, buf.String(), startPos, endPos
 	case "push":
+		s.lastToken = PUSH
 		return PUSH, buf.String(), startPos, endPos
 	case "new":
+		s.lastToken = NEW
 		return NEW, buf.String(), startPos, endPos
 	case "spawn":
+		s.lastToken = SPAWN
 		return SPAWN, buf.String(), startPos, endPos
 	case "snew":
+		s.lastToken = SNEW
 		return SNEW, buf.String(), startPos, endPos
 	case "forward":
+		s.lastToken = FORWARD
 		return FORWARD, buf.String(), startPos, endPos
 	case "fwd":
+		s.lastToken = FORWARD
 		return FORWARD, buf.String(), startPos, endPos
 	case "type":
+		s.lastToken = TYPE
 		return TYPE, buf.String(), startPos, endPos
 	case "let":
+		s.lastToken = LET
 		return LET, buf.String(), startPos, endPos
 	case "in":
+		s.lastToken = IN
 		return IN, buf.String(), startPos, endPos
 	case "end":
+		s.lastToken = END
 		return END, buf.String(), startPos, endPos
 	case "sprc":
+		s.lastToken = SPRC
 		return SPRC, buf.String(), startPos, endPos
 	case "prc":
+		s.lastToken = PRC
 		return PRC, buf.String(), startPos, endPos
 	case "self":
+		s.lastToken = SELF
 		return SELF, buf.String(), startPos, endPos
 	case "assuming":
+		s.lastToken = ASSUMING
 		return ASSUMING, buf.String(), startPos, endPos
 	case "exec":
+		s.lastToken = EXEC
 		return EXEC, buf.String(), startPos, endPos
 	case "print":
 		// Debug keyword
+		s.lastToken = PRINT
 		return PRINT, buf.String(), startPos, endPos
 	case "sync":
+		s.lastToken = SYNC
 		return SYNC, buf.String(), startPos, endPos
 	}
+	s.lastToken = LABEL
 	return LABEL, buf.String(), startPos, endPos
 }
 
@@ -277,57 +334,68 @@ func (s *scanner) scanSpecialSymbol(ch rune) (token tok, value string, startPos,
 		// Can be = or =>
 		if ch2 == '>' {
 			// is =>
+			s.lastToken = RIGHT_ARROW
 			return RIGHT_ARROW, "=>", startPos, endPos
 		} else {
 			// is just =
 			s.unread()
+			s.lastToken = EQUALS
 			return EQUALS, "=", startPos, endPos
 		}
 	case '<':
 		// Can be < or <-
 		if ch2 == '-' {
 			// is <-
+			s.lastToken = LEFT_ARROW
 			return LEFT_ARROW, "<-", startPos, endPos
 		} else {
 			// is just <
 			s.unread()
+			s.lastToken = LANGLE
 			return LANGLE, "<", startPos, endPos
 		}
 	case '-':
 		// Can be - or -* (or -o)
 		if ch2 == '*' {
 			// is -o
+			s.lastToken = LOLLI
 			return LOLLI, "-*", startPos, endPos
 		} else if ch2 == 'o' {
 			// is -o
+			s.lastToken = LOLLI
 			return LOLLI, "-o", startPos, endPos
 		} else {
 			// is just -
 			s.unread()
+			s.lastToken = MINUS
 			return MINUS, "-", startPos, endPos
 		}
 	case '1':
 		// Can be 1 or label starting with 1
-		if isAlphaNum(ch2) || isUnderscore(ch2) || isApostrophe(ch2) {
+		if isAlphaNum(ch2) || isUnderscore(ch2) || isApostrophe(ch2) || s.lastToken == AT {
 			// is a label
 			s.unread()
 			return s.scanLabel(ch)
 		} else {
 			// is just 1
 			s.unread()
+			s.lastToken = UNIT
 			return UNIT, "1", startPos, endPos
 		}
 	case '\\':
 		// Should be \/
 		if ch2 == '/' {
+			s.lastToken = DOWN_ARROW
 			return DOWN_ARROW, "\\/", startPos, endPos
 		}
 	case '/':
 		// Should be /\
 		if ch2 == '\\' {
+			s.lastToken = UP_ARROW
 			return UP_ARROW, "\\/", startPos, endPos
 		}
 	}
 	// Not one of the special commands
+	s.lastToken = kILLEGAL
 	return kILLEGAL, string(ch), startPos, endPos
 }
