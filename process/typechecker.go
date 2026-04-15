@@ -309,7 +309,7 @@ func typecheckFunctionDefinitions(globalEnv *GlobalEnvironment) error {
 		// todo JAMES: check what should be the contents of delta
 		deltaNameTypesCtx := make(NamesTypesCtx)
 		// todo JAMES: create a way to obtain ft promise
-		faultTolerancePromise := 0
+		faultTolerancePromise := uint64(0)
 		providerType := funcDef.Type
 
 		globalEnv.logf(LOGRULE, "Typechecking function definition %s\n", funcDef.String())
@@ -339,7 +339,7 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 		// todo JAMES: check what should be the contents of delta
 		deltaNameTypesCtx := make(NamesTypesCtx)
 		// todo JAMES: create a way to obtain ft promise
-		faultTolerancePromise := 0
+		faultTolerancePromise := uint64(0)
 		providerType := processes[i].Type
 
 		globalEnv.logf(LOGRULE, "Typechecking process %s\n", processes[i].OutlineString())
@@ -375,7 +375,7 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 // -> globalEnv           	<- [read-only] contains the logging capabilities
 
 // */-*: send w<u, v>
-func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.to_c, providerShadowName) {
 		// MulR: *
 		globalEnv.log(LOGRULEDETAILS, "rule ⊗R (MulR)")
@@ -489,7 +489,7 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 }
 
 // */-*: <x, y> <- recv w; P
-func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.from_c, providerShadowName) {
 		// ImpR: -*
 		globalEnv.log(LOGRULEDETAILS, "rule ⊸R (ImpR)")
@@ -589,7 +589,7 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 }
 
 // Internal/External Choice: w.l<u>
-func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.to_c, providerShadowName) {
 		// IChoiceR: +{label1: T1, ...}
 		globalEnv.log(LOGRULEDETAILS, "rule ⊕R (IChoiceR)")
@@ -682,7 +682,7 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTyp
 }
 
 // Case: case from_c ( branches )
-func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.from_c, providerShadowName) {
 		// EChoiceR: &{label1: T1, ...}
 		globalEnv.log(LOGRULEDETAILS, "rule & (EChoiceR)")
@@ -819,12 +819,12 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 }
 
 // Branch: label<payload_c> => continuation_e
-func (p *BranchForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *BranchForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	return TypeErrorf("Cannot typecheck a case/receive branch directly")
 }
 
 // New: continuation_c <- new (body); continuation_e
-func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// Cut
 	globalEnv.log(LOGRULEDETAILS, "rule CUT")
 
@@ -1004,7 +1004,7 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesC
 }
 
 // New: continuation_c <- spawn (body); continuation_e
-func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// FalCut
 	globalEnv.log(LOGRULEDETAILS, "rule FALCUT")
 
@@ -1067,7 +1067,7 @@ func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 			}
 
 			// ft promise for newly spawned process is set to 0 as it makes no difference for fallible channels
-			callFaultTolerancePromise := 0
+			callFaultTolerancePromise := uint64(0)
 
 			// Typecheck the call function
 			callBodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, callFaultTolerancePromise, &p.spawned_name_c, functionSignatureType, labelledTypesEnv, sigma, globalEnv)
@@ -1149,7 +1149,7 @@ func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 			}
 
 			// ft promise for newly spawned process is set to 0 as it makes no difference for fallible channels
-			newProcessFaultTolerancePromise := 0
+			newProcessFaultTolerancePromise := uint64(0)
 
 			// typecheck the body of the process being spawned
 			bodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, newProcessFaultTolerancePromise, &p.spawned_name_c, p.spawned_name_c.Type, labelledTypesEnv, sigma, globalEnv)
@@ -1184,7 +1184,7 @@ func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 }
 
 // 1 : close w
-func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// EndR: 1
 	globalEnv.log(LOGRULEDETAILS, "rule 1R (EndR)")
 
@@ -1222,7 +1222,7 @@ func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 }
 
 // 1 : wait w; ...
-func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// EndL: 1
 	globalEnv.log(LOGRULEDETAILS, "rule 1L (EndL)")
 
@@ -1269,7 +1269,7 @@ func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 }
 
 // fwd w u
-func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// ID: 1
 	globalEnv.log(LOGRULEDETAILS, "rule ID/FWD")
 
@@ -1316,7 +1316,7 @@ func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 }
 
 // drop w; ...
-func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// Drop
 	globalEnv.log(LOGRULEDETAILS, "rule DROP")
 
@@ -1353,7 +1353,7 @@ func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 }
 
 // f(...)
-func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule CALL")
 
 	// Check that function exists
@@ -1452,7 +1452,7 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 }
 
 // Sync: bridge_c <- sync <channels_to_be_synced>; continuation_e
-func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule SYNC")
 
 	if len(p.channels_to_be_synced) < 1 {
@@ -1460,7 +1460,7 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	}
 
 	// handles k > n check in the SYNC rule
-	if len(p.channels_to_be_synced) <= faultTolerancePromise {
+	if len(p.channels_to_be_synced) <= int(faultTolerancePromise) {
 		return TypeErrorf("cannot guarantee the specified fault tolerance promise as not enough dependencies being synced, required at least %d + 1 dependencies", faultTolerancePromise)
 	}
 
@@ -1520,7 +1520,7 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 }
 
 // Split: <channel_one, channel_two> <- recv from_c; P
-func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule SPLIT")
 
 	// Can only wait for a client (not self)
@@ -1571,7 +1571,7 @@ func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 	return continuationError
 }
 
-func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.to_c, providerShadowName) {
 		// Downshift DnSR: \/
 		globalEnv.log(LOGRULEDETAILS, "rule ↓R (DnSR, Cast)")
@@ -1677,7 +1677,7 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	return nil
 }
 
-func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.from_c, providerShadowName) {
 		// UpSR: /\
 		globalEnv.log(LOGRULEDETAILS, "rule ↑R (UpSR, Shift)")
@@ -1771,7 +1771,7 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 	}
 }
 
-func (p *PrintForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+func (p *PrintForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	// Print
 	globalEnv.log(LOGRULEDETAILS, "rule PRINT")
 
