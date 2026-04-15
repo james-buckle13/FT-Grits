@@ -392,7 +392,7 @@ func (s *scanner) scanSpecialSymbol(ch rune) (token tok, value string, startPos,
 		// Should be /\
 		if ch2 == '\\' {
 			s.lastToken = UP_ARROW
-			return UP_ARROW, "\\/", startPos, endPos
+			return UP_ARROW, "/\\", startPos, endPos
 		}
 	}
 	// Not one of the special commands
