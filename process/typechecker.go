@@ -890,16 +890,9 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesC
 				return TypeErrorE(err)
 			}
 
-			// todo JAMES: find a way to obtain ft promise
-			callFaultTolerancePromise := 0
-
-			// performs k >= n check
-			if callFaultTolerancePromise < faultTolerancePromise {
-				return TypeErrorf("Fault tolerance promise of newly created infallible process (%d) is not strong enough to support that of the provider (%d)", callFaultTolerancePromise, faultTolerancePromise)
-			}
-
 			// Typecheck the call function
-			callBodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, callFaultTolerancePromise, &p.new_name_c, functionSignatureType, labelledTypesEnv, sigma, globalEnv)
+			// N.B. type checking with the original ft promise will ensure that the newly spawned process (the function being called) has a ft promise at least as strong as that of its parent, i.e. caters for k >= n check in the CUT rule
+			callBodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, faultTolerancePromise, &p.new_name_c, functionSignatureType, labelledTypesEnv, sigma, globalEnv)
 
 			if callBodyError != nil {
 				return callBodyError
@@ -918,7 +911,7 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesC
 			// Set type
 			p.new_name_c.Type = functionSignatureType
 
-			// Check for declaration of independence: (m ⪰ n)
+			// Check for declaration of independence: (m ⪰ o)
 			// m (type of p.continuation_c) ⪰ p (providerType)
 			err = declationOfIndependenceOne(p.new_name_c, providerType)
 			if err != nil {
@@ -977,16 +970,9 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesC
 				return TypeErrorE(err)
 			}
 
-			// todo JAMES: find a way to obtain ft promise
-			newProcessFaultTolerancePromise := 0
-
-			// performs k >= n check
-			if newProcessFaultTolerancePromise < faultTolerancePromise {
-				return TypeErrorf("Fault tolerance promise of newly created infallible process (%d) is not strong enough to support that of the provider (%d)", newProcessFaultTolerancePromise, faultTolerancePromise)
-			}
-
 			// typecheck the body of the process being spawned
-			bodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, newProcessFaultTolerancePromise, &p.new_name_c, p.new_name_c.Type, labelledTypesEnv, sigma, globalEnv)
+			// N.B. type checking with the original ft promise will ensure that the newly spawned process has a ft promise at least as strong as that of its parent, i.e. caters for k >= n check in the CUT rule
+			bodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, faultTolerancePromise, &p.new_name_c, p.new_name_c.Type, labelledTypesEnv, sigma, globalEnv)
 
 			if bodyError != nil {
 				return bodyError
@@ -1080,7 +1066,7 @@ func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 				return TypeErrorE(err)
 			}
 
-			// todo JAMES: find a way to obtain ft promise
+			// ft promise for newly spawned process is set to 0 as it makes no difference for fallible channels
 			callFaultTolerancePromise := 0
 
 			// Typecheck the call function
@@ -1162,7 +1148,7 @@ func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 				return TypeErrorE(err)
 			}
 
-			// todo JAMES: find a way to obtain ft promise
+			// ft promise for newly spawned process is set to 0 as it makes no difference for fallible channels
 			newProcessFaultTolerancePromise := 0
 
 			// typecheck the body of the process being spawned
