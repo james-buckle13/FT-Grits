@@ -15,8 +15,8 @@ func main() {
 		p := `
 			type nat = +{zero : 1, succ : nat}
 			let create_zero() : nat @ 0 = t: 1 <- new close self; self.zero<t>
-			let a_body() : nat * 1 @ 0 = z0: nat <- new (create_zero()); term: 1 <- new close self; send self <z0, term>
-			prc[a] : nat * 1 @ 1 = a: nat * 1 <- spawn (a_body()); b: nat * 1 <- spawn (a_body()); y <- sync <a, b>; <z, y'> <- recv y; wait y'; term: 1 <-new close self; send self <z, term>
+			let body() : nat * 1 @ 0 = z0: nat <- new (create_zero()); term: 1 <- new close self; send self <z0, term>
+			prc[a] : nat * 1 @ 1 = a: nat * 1 <- spawn (body()); b: nat * 1 <- spawn (body()); y <- sync <a, b>; <z, y'> <- recv y; wait y'; term: 1 <-new close self; send self <z, term>
 			`
 		dev(p)
 	} else {
