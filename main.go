@@ -8,13 +8,15 @@ import (
 	"time"
 )
 
-const development = false
+const development = true
 
 func main() {
 	if development {
 		p := `
-			prc[a] : 1 = wait b; print ok; close self
-			prc[b] : 1 = close self
+			type nat = +{zero : 1, succ : nat}
+			let create_zero() : nat @ 0 = t: 1 <- new close self; self.zero<t>
+			let a_body() : nat * 1 @ 0 = z0: nat <- new (create_zero()); term: 1 <- new close self; send self <z0, term>
+			prc[a] : nat * 1 @ 1 = a: nat * 1 <- spawn (a_body()); b: nat * 1 <- spawn (a_body()); y <- sync <a, b>; <z, y'> <- recv y; wait y'; term: 1 <-new close self; send self <z, term>
 			`
 		dev(p)
 	} else {
@@ -27,7 +29,7 @@ func dev(program string) {
 	const (
 		executionVersion = process.NORMAL_ASYNC
 		typecheck        = true
-		execute          = true
+		execute          = false
 		delay            = 0 * time.Millisecond
 	)
 	var processes []*process.Process

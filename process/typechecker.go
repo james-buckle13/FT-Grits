@@ -1466,7 +1466,7 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 	providedTypesOfSyncedChans := make([]types.SessionType, len(p.channels_to_be_synced))
 
-	for _, fallibleChannel := range p.channels_to_be_synced {
+	for i, fallibleChannel := range p.channels_to_be_synced {
 		// Can only wait for a client (not self)
 		if isProvider(fallibleChannel, providerShadowName) {
 			return TypeErrorf("expected '%s' to sync a dependency, not itself ('%s' is acting as self)", p.StringShort(), fallibleChannel.String())
@@ -1480,7 +1480,7 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 		foundType = types.Unfold(foundType, labelledTypesEnv)
 
-		providedTypesOfSyncedChans = append(providedTypesOfSyncedChans, foundType)
+		providedTypesOfSyncedChans[i] = foundType
 
 		if err != nil {
 			return TypeErrorE(err)
