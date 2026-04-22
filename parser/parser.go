@@ -110,7 +110,8 @@ func expandProcesses(u allEnvironment) ([]*process.Process, []process.Name, *pro
 			// 		e.g. prc[a, b, c, d]: send self<...>
 
 			// Define process
-			new_p := process.NewProcess(p.proc.Body, p.proc.Providers, p.proc.Type, process.LINEAR, p.position, p.proc.FaultTolerancePromise)
+			new_p := process.NewProcess(p.proc.Body, p.proc.Providers, p.proc.Type, process.LINEAR, p.position)
+			new_p.FaultTolerancePromise = p.proc.FaultTolerancePromise
 
 			if len(new_p.Providers) == 1 {
 				// Set IsSelf to true for the explicit provider
@@ -146,7 +147,8 @@ func expandProcesses(u allEnvironment) ([]*process.Process, []process.Name, *pro
 			if function == nil {
 				return nil, nil, nil, fmt.Errorf("invalid calling exec on %s()", functionName)
 			}
-			new_p := process.NewProcess(p.proc.Body, []process.Name{{Ident: fmt.Sprintf("exec%d", execCount), IsSelf: true}}, function.Type, process.LINEAR, p.position, p.proc.FaultTolerancePromise)
+			new_p := process.NewProcess(p.proc.Body, []process.Name{{Ident: fmt.Sprintf("exec%d", execCount), IsSelf: true}}, function.Type, process.LINEAR, p.position)
+			new_p.FaultTolerancePromise = function.FaultTolerancePromise
 			processes = append(processes, new_p)
 		}
 	}

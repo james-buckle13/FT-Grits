@@ -17,14 +17,13 @@ type Process struct {
 	FaultTolerancePromise uint64
 }
 
-func NewProcess(body Form, providers []Name, session_type types.SessionType, shape Shape, position position.Position, fault_tolerance_promise uint64) *Process {
+func NewProcess(body Form, providers []Name, session_type types.SessionType, shape Shape, position position.Position) *Process {
 	return &Process{
-		Body:                  body,
-		Providers:             providers,
-		Shape:                 shape,
-		Type:                  session_type,
-		Position:              position,
-		FaultTolerancePromise: fault_tolerance_promise,
+		Body:      body,
+		Providers: providers,
+		Shape:     shape,
+		Type:      session_type,
+		Position:  position,
 	}
 }
 

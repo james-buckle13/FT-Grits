@@ -308,8 +308,8 @@ func typecheckFunctionDefinitions(globalEnv *GlobalEnvironment) error {
 		gammaNameTypesCtx := produceNameTypesCtx(funcDef.Parameters)
 		// todo JAMES: check what should be the contents of delta
 		deltaNameTypesCtx := make(NamesTypesCtx)
-		// todo JAMES: create a way to obtain ft promise
-		faultTolerancePromise := uint64(0)
+
+		faultTolerancePromise := funcDef.FaultTolerancePromise
 		providerType := funcDef.Type
 
 		globalEnv.logf(LOGRULE, "Typechecking function definition %s\n", funcDef.String())
@@ -338,8 +338,8 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 		gammaNameTypesCtx := produceNameTypesCtx(freeNames)
 		// todo JAMES: check what should be the contents of delta
 		deltaNameTypesCtx := make(NamesTypesCtx)
-		// todo JAMES: create a way to obtain ft promise
-		faultTolerancePromise := uint64(0)
+
+		faultTolerancePromise := processes[i].FaultTolerancePromise
 		providerType := processes[i].Type
 
 		globalEnv.logf(LOGRULE, "Typechecking process %s\n", processes[i].OutlineString())
