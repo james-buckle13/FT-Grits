@@ -88,10 +88,10 @@ statements : process_def             { $$ = []unexpandedProcessOrFunction{$1} }
 /* A process is defined using the prc keyword */
 process_def : 
 			/* without type - todo remove option to force types */
-		    PRC LSBRACK names RSBRACK EQUALS expression 
-				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$6, Providers: $3}, position: gritsVAL.currPosition} }
-		  | PRC LSBRACK names RSBRACK COLON session_type EQUALS expression 
-				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$8, Type: $6, Providers: $3}, position: gritsVAL.currPosition} };
+		    PRC LSBRACK names RSBRACK AT fault_tolerance_promise EQUALS expression 
+				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$8, Providers: $3, FaultTolerancePromise: $6}, position: gritsVAL.currPosition} }
+		  | PRC LSBRACK names RSBRACK COLON session_type AT fault_tolerance_promise EQUALS expression 
+				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$10, Type: $6, Providers: $3, FaultTolerancePromise: $8}, position: gritsVAL.currPosition} };
 		/*| SPRC LSBRACK names RSBRACK COLON expression
 				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$6, Providers: $3}, position: gritsVAL.currPosition} };*/
 
@@ -106,14 +106,14 @@ expression : /* Send */ SEND name LANGLE name COMMA name RANGLE
 		   			{ $$ = process.NewSelect($1, process.Label{L: $3}, $5) }
 		   | /* Case */ CASE name LPAREN branches RPAREN 
 		   			{ $$ = process.NewCase($2, $4) }
-		   | /* New */ name AT fault_tolerance_promise LEFT_ARROW NEW expression SEQUENCE expression 
-					{ $$ = process.NewNew($1, $6, $8, $3) } 
-		   | /* New */ LABEL COLON session_type AT fault_tolerance_promise LEFT_ARROW NEW expression SEQUENCE expression 
-					{ $$ = process.NewNew(process.Name{Ident: $1, Type: $3, IsSelf: false}, $8, $10, $5) }		   
-		   | /* Spawn */ name AT fault_tolerance_promise LEFT_ARROW SPAWN expression SEQUENCE expression 
-					{ $$ = process.NewSpawn($1, $6, $8, $3) } 
-		   | /* Spawn */ LABEL COLON session_type AT fault_tolerance_promise LEFT_ARROW SPAWN expression SEQUENCE expression 
-					{ $$ = process.NewSpawn(process.Name{Ident: $1, Type: $3, IsSelf: false}, $8, $10, $5) }
+		   | /* New */ name LEFT_ARROW NEW expression SEQUENCE expression 
+					{ $$ = process.NewNew($1, $4, $6) } 
+		   | /* New */ LABEL COLON session_type LEFT_ARROW NEW expression SEQUENCE expression 
+					{ $$ = process.NewNew(process.Name{Ident: $1, Type: $3, IsSelf: false}, $6, $8) }		   
+		   | /* Spawn */ name LEFT_ARROW SPAWN expression SEQUENCE expression 
+					{ $$ = process.NewSpawn($1, $4, $6) } 
+		   | /* Spawn */ LABEL COLON session_type LEFT_ARROW SPAWN expression SEQUENCE expression 
+					{ $$ = process.NewSpawn(process.Name{Ident: $1, Type: $3, IsSelf: false}, $6, $8) }
 		   | /* Call */ LABEL LPAREN optional_names RPAREN
 		   			{ $$ = process.NewCall($1, $3) }
 		   | /* Close */ CLOSE name
@@ -194,31 +194,33 @@ assuming_def : ASSUMING names_with_type_ann
 
 function_def : 
 			/* without type - todo remove option to force types */
-			 LET LABEL LPAREN optional_names_with_type_ann RPAREN EQUALS expression
-					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $7, UsesExplicitProvider: false}, position: gritsVAL.currPosition} }
-			| /* with type annotation */ LET LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type EQUALS expression
-					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $9, Type: $7, UsesExplicitProvider: false}, position: gritsVAL.currPosition} }
+			 LET LABEL LPAREN optional_names_with_type_ann RPAREN AT fault_tolerance_promise EQUALS expression
+					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $9, UsesExplicitProvider: false, FaultTolerancePromise: $7}, position: gritsVAL.currPosition} }
+			| /* with type annotation */ LET LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type AT fault_tolerance_promise EQUALS expression
+					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $11, Type: $7, UsesExplicitProvider: false, FaultTolerancePromise: $9}, position: gritsVAL.currPosition} }
 			| /* explicit provider name : without type - todo remove option to force types */
-			 LET LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK EQUALS expression
+			 LET LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 
 								Parameters: $5, 
-								Body: $8, 
+								Body: $10, 
 								UsesExplicitProvider: true, 
 								ExplicitProvider: process.Name{Ident: $4, IsSelf: true}, 
+								FaultTolerancePromise: $8,
 								// Type: $6,
 								}, position: gritsVAL.currPosition} }
 			| /* explicit provider name :  with type annotation */
-			 LET LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK EQUALS expression 
+			 LET LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression 
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 
 								Parameters: $7, 
-								Body: $10, 
+								Body: $12, 
 								UsesExplicitProvider: true, 
 								ExplicitProvider: process.Name{Ident: $4, IsSelf: true}, 
-								Type: $6}, position: gritsVAL.currPosition} };
+								Type: $6, 
+								FaultTolerancePromise: $10}, position: gritsVAL.currPosition} };
 
 type_def : TYPE LABEL EQUALS session_type
 			{ $$ = unexpandedProcessOrFunction{

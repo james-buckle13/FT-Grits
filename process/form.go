@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"grits/types"
 	"reflect"
-	"strconv"
 )
 
 // All process' bodies have to follow the Form interface
@@ -380,16 +379,14 @@ type NewForm struct {
 	new_name_c       Name
 	body             Form
 	continuation_e   Form
-	ft_promise       uint64
 	derivedFromMacro bool
 }
 
-func NewNew(new_name_c Name, body, continuation_e Form, ft_promise uint64) *NewForm {
+func NewNew(new_name_c Name, body, continuation_e Form) *NewForm {
 	return &NewForm{
 		new_name_c:       new_name_c,
 		body:             body,
 		continuation_e:   continuation_e,
-		ft_promise:       ft_promise,
 		derivedFromMacro: false,
 	}
 }
@@ -397,8 +394,6 @@ func NewNew(new_name_c Name, body, continuation_e Form, ft_promise uint64) *NewF
 func (p *NewForm) String() string {
 	var buf bytes.Buffer
 	buf.WriteString(p.new_name_c.String())
-	buf.WriteString(" @ ")
-	buf.WriteString(strconv.FormatUint(p.ft_promise, 10))
 	buf.WriteString(" <- new (")
 	buf.WriteString(p.body.String())
 	buf.WriteString("); ")
@@ -409,8 +404,6 @@ func (p *NewForm) String() string {
 func (p *NewForm) StringShort() string {
 	var buf bytes.Buffer
 	buf.WriteString(p.new_name_c.String())
-	buf.WriteString(" @ ")
-	buf.WriteString(strconv.FormatUint(p.ft_promise, 10))
 	buf.WriteString(" <- new ...; ...")
 	return buf.String()
 }
@@ -446,16 +439,14 @@ type SpawnForm struct {
 	spawned_name_c   Name
 	body             Form
 	continuation_e   Form
-	ft_promise       uint64
 	derivedFromMacro bool
 }
 
-func NewSpawn(spawned_name_c Name, body, continuation_e Form, ft_promise uint64) *SpawnForm {
+func NewSpawn(spawned_name_c Name, body, continuation_e Form) *SpawnForm {
 	return &SpawnForm{
 		spawned_name_c:   spawned_name_c,
 		body:             body,
 		continuation_e:   continuation_e,
-		ft_promise:       ft_promise,
 		derivedFromMacro: false,
 	}
 }
@@ -463,8 +454,6 @@ func NewSpawn(spawned_name_c Name, body, continuation_e Form, ft_promise uint64)
 func (p *SpawnForm) String() string {
 	var buf bytes.Buffer
 	buf.WriteString(p.spawned_name_c.String())
-	buf.WriteString(" @ ")
-	buf.WriteString(strconv.FormatUint(p.ft_promise, 10))
 	buf.WriteString(" <- spawn (")
 	buf.WriteString(p.body.String())
 	buf.WriteString("); ")
@@ -475,8 +464,6 @@ func (p *SpawnForm) String() string {
 func (p *SpawnForm) StringShort() string {
 	var buf bytes.Buffer
 	buf.WriteString(p.spawned_name_c.String())
-	buf.WriteString(" @ ")
-	buf.WriteString(strconv.FormatUint(p.ft_promise, 10))
 	buf.WriteString(" <- spawn ...; ...")
 	return buf.String()
 }
@@ -1113,14 +1100,14 @@ func EqualForm(form1, form2 Form) bool {
 		f2, ok2 := form2.(*NewForm)
 
 		if ok1 && ok2 {
-			return f1.new_name_c.Equal(f2.new_name_c) && EqualForm(f1.body, f2.body) && EqualForm(f1.continuation_e, f2.continuation_e) && f1.ft_promise == f2.ft_promise
+			return f1.new_name_c.Equal(f2.new_name_c) && EqualForm(f1.body, f2.body) && EqualForm(f1.continuation_e, f2.continuation_e)
 		}
 	case *SpawnForm:
 		f1, ok1 := form1.(*SpawnForm)
 		f2, ok2 := form2.(*SpawnForm)
 
 		if ok1 && ok2 {
-			return f1.spawned_name_c.Equal(f2.spawned_name_c) && EqualForm(f1.body, f2.body) && EqualForm(f1.continuation_e, f2.continuation_e) && f1.ft_promise == f2.ft_promise
+			return f1.spawned_name_c.Equal(f2.spawned_name_c) && EqualForm(f1.body, f2.body) && EqualForm(f1.continuation_e, f2.continuation_e)
 		}
 	case *ForwardForm:
 		f1, ok1 := form1.(*ForwardForm)
@@ -1254,14 +1241,14 @@ func CopyForm(orig Form) Form {
 		if ok {
 			body := CopyForm(p.body)
 			cont := CopyForm(p.continuation_e)
-			return NewNew(*p.new_name_c.Copy(), body, cont, p.ft_promise)
+			return NewNew(*p.new_name_c.Copy(), body, cont)
 		}
 	case *SpawnForm:
 		p, ok := orig.(*SpawnForm)
 		if ok {
 			body := CopyForm(p.body)
 			cont := CopyForm(p.continuation_e)
-			return NewSpawn(*p.spawned_name_c.Copy(), body, cont, p.ft_promise)
+			return NewSpawn(*p.spawned_name_c.Copy(), body, cont)
 		}
 	case *ForwardForm:
 		p, ok := orig.(*ForwardForm)

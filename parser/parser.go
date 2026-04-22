@@ -38,9 +38,10 @@ const (
 
 // Process that is currently being parsed and yet to become a process.Process
 type incompleteProcess struct {
-	Body      process.Form
-	Providers []process.Name
-	Type      types.SessionType
+	Body                  process.Form
+	Providers             []process.Name
+	Type                  types.SessionType
+	FaultTolerancePromise uint64
 }
 
 func ParseString(program string) ([]*process.Process, []process.Name, *process.GlobalEnvironment, error) {
@@ -109,7 +110,7 @@ func expandProcesses(u allEnvironment) ([]*process.Process, []process.Name, *pro
 			// 		e.g. prc[a, b, c, d]: send self<...>
 
 			// Define process
-			new_p := process.NewProcess(p.proc.Body, p.proc.Providers, p.proc.Type, process.LINEAR, p.position)
+			new_p := process.NewProcess(p.proc.Body, p.proc.Providers, p.proc.Type, process.LINEAR, p.position, p.proc.FaultTolerancePromise)
 
 			if len(new_p.Providers) == 1 {
 				// Set IsSelf to true for the explicit provider
@@ -145,7 +146,7 @@ func expandProcesses(u allEnvironment) ([]*process.Process, []process.Name, *pro
 			if function == nil {
 				return nil, nil, nil, fmt.Errorf("invalid calling exec on %s()", functionName)
 			}
-			new_p := process.NewProcess(p.proc.Body, []process.Name{{Ident: fmt.Sprintf("exec%d", execCount), IsSelf: true}}, function.Type, process.LINEAR, p.position)
+			new_p := process.NewProcess(p.proc.Body, []process.Name{{Ident: fmt.Sprintf("exec%d", execCount), IsSelf: true}}, function.Type, process.LINEAR, p.position, p.proc.FaultTolerancePromise)
 			processes = append(processes, new_p)
 		}
 	}
