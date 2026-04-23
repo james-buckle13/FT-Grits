@@ -15,8 +15,9 @@ func main() {
 		p := `
 			type nat = +{zero : 1, succ : nat}
 			let create_zero() : nat @ 0 = t: 1 <- new close self; self.zero<t>
-			let body() : nat * 1 @ 0 = z0: nat <- new (create_zero()); term: 1 <- new close self; send self <z0, term>
-			prc[a] : nat * 1 @ 1 = a: nat * 1 <- spawn (body()); b: nat * 1 <- spawn (body()); y <- sync <a, b>; <z, y'> <- recv y; wait y'; term: 1 <-new close self; send self <z, term>
+			let a_body() : nat * 1 @ 0 = z0: nat <- new (create_zero()); term: 1 <- new close self; send self <z0, term>
+			let b_body() : 1 * 1 @ 0 = term1: 1 <- new close self; term2: 1 <- new close self; send self <term1, term2> // to be used for checking type mismatch
+			prc[a] : nat * 1 @ 1 = a <- spawn (a_body()); b <- spawn (a_body()); y <- sync <a, b>; <z, y'> <- recv y; wait y'; term: 1 <-new close self; send self <z, term>
 			`
 		dev(p)
 	} else {
