@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"unicode"
 )
 
 const (
@@ -364,6 +365,9 @@ func (s *scanner) scanSpecialSymbol(ch rune) (token tok, value string, startPos,
 			// is -o
 			s.lastToken = LOLLI
 			return LOLLI, "-o", startPos, endPos
+		} else if unicode.IsNumber(ch2) {
+			s.unread()
+			return s.scanLabel(ch)
 		} else {
 			// is just -
 			s.unread()
