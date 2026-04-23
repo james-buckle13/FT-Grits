@@ -91,7 +91,7 @@ func TestBasicTokens(t *testing.T) {
 	expected = append(expected, "to_c.label1<cont_c>")
 
 	// New
-	input7 := NewNew(cont_c, end, end, 0)
+	input7 := NewNew(cont_c, end, end)
 	output = append(output, input7.String())
 	expected = append(expected, "cont_c <- new (close self); close self")
 
@@ -195,10 +195,10 @@ func TestSubstitutions(t *testing.T) {
 	expected = append(expected, result4)
 
 	// New
-	input5 := NewNew(cont_c, end, end, 0)
+	input5 := NewNew(cont_c, end, end)
 	input5.Substitute(cont_c, new_cont_c)
 	input5.Substitute(self, new_self)
-	result5 := NewNew(cont_c, end, end, 0)
+	result5 := NewNew(cont_c, end, end)
 	output = append(output, input5)
 	expected = append(expected, result5)
 
@@ -329,7 +329,7 @@ func TestCopy(t *testing.T) {
 	assertNotEqual(t, input4, copy4)
 
 	// New
-	input5 := NewNew(cont_c, end, end, 0)
+	input5 := NewNew(cont_c, end, end)
 	copy5 := CopyForm(input5)
 	copyWithType5 := copy5.(*NewForm)
 	copyWithType5.new_name_c.Ident = "cont_c"
@@ -418,10 +418,10 @@ func TestFreeNames(t *testing.T) {
 	assertEqualNames(t, input4.FreeNames(), []Name{to_c, cont_c})
 
 	// New
-	input5 := NewNew(cont_c, end, end, 0)
+	input5 := NewNew(cont_c, end, end)
 	assertEqualNames(t, input5.FreeNames(), []Name{})
 
-	input5other := NewNew(cont_c, input3, end, 0)
+	input5other := NewNew(cont_c, input3, end)
 	assertEqualNames(t, input5other.FreeNames(), []Name{from_c, to_c, cont_c})
 
 	// Close
@@ -487,7 +487,7 @@ func TestFormHasContinuation(t *testing.T) {
 	expectedTrue = append(expectedTrue, FormHasContinuation(input8))
 
 	// New
-	input9 := NewNew(cont_c, end, end, 0)
+	input9 := NewNew(cont_c, end, end)
 	expectedTrue = append(expectedTrue, FormHasContinuation(input9))
 
 	// Split

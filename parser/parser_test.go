@@ -86,7 +86,7 @@ func TestBasicForms(t *testing.T) {
 
 	input = "cont_c <- new (close self); close self"
 	output = append(output, parseGetBody(input))
-	expected = append(expected, process.NewNew(cont_c, end, end, 0))
+	expected = append(expected, process.NewNew(cont_c, end, end))
 
 	input = "close from_c"
 	output = append(output, parseGetBody(input))
