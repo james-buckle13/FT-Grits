@@ -85,6 +85,16 @@ func GetFunctionByNameArity(functions []FunctionDefinition, name string, arity i
 	return nil
 }
 
+func GetFunctionByName(functions []FunctionDefinition, name string) *FunctionDefinition {
+	for _, f := range functions {
+		if f.FunctionName == name {
+			return &f
+		}
+	}
+
+	return nil
+}
+
 type Shape int
 
 const (

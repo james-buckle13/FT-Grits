@@ -890,6 +890,14 @@ func (p *NewForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesC
 				return TypeErrorE(err)
 			}
 
+			function := GetFunctionByName(*globalEnv.FunctionDefinitions, callForm.functionName)
+			if function == nil {
+				return TypeErrorf("function '%s' is undefined", p.body.String())
+			}
+
+			if function.FaultTolerancePromise < faultTolerancePromise {
+				return TypeErrorf("expected fault tolerance promise of at least %d, but found %d", faultTolerancePromise, function.FaultTolerancePromise)
+			}
 			// Typecheck the call function
 			// N.B. type checking with the original ft promise will ensure that the newly spawned process (the function being called) has a ft promise at least as strong as that of its parent, i.e. caters for k >= n check in the CUT rule
 			callBodyError := p.body.typecheckForm(gammaLeftNameTypesCtx, deltaLeftNameTypesCtx, faultTolerancePromise, &p.new_name_c, functionSignatureType, labelledTypesEnv, sigma, globalEnv)
