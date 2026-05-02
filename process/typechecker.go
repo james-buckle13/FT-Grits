@@ -482,7 +482,7 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	}
 
 	// make sure that no variables are left in gamma
-	if err := linearGammaContext(gammaNameTypesCtx); err != nil {
+	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
 	return nil
@@ -675,7 +675,7 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTyp
 	}
 
 	// make sure that no variables are left in gamma
-	if err := linearGammaContext(gammaNameTypesCtx); err != nil {
+	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
 	return nil
@@ -1223,7 +1223,7 @@ func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 	}
 
 	// make sure that no variables are left in gamma
-	if err := linearGammaContext(gammaNameTypesCtx); err != nil {
+	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
 	return nil
@@ -1289,7 +1289,6 @@ func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 		return TypeErrorf("not forwarding on self (%s). Expected forward to refer to self (fwd %s %s)", p.String(), p.from_c.String(), p.to_c.String())
 	}
 
-	// todo JAMES: determine how delta affects name consumption for forward
 	clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 	clientType = types.Unfold(clientType, labelledTypesEnv)
 	if errorClient != nil {
@@ -1317,7 +1316,7 @@ func (p *ForwardForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 	}
 
 	// make sure that no variables are left in gamma
-	if err := linearGammaContext(gammaNameTypesCtx); err != nil {
+	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
 	return nil
@@ -1330,7 +1329,6 @@ func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 	// Can only wait for a client (not self)
 	if !isProvider(p.client_c, providerShadowName) {
-		// todo JAMES: determine how delta affects name consumption for drop
 		clientType, _, errorClient := consumeName(p.client_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
@@ -1347,7 +1345,6 @@ func (p *DropForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 			}
 
 			// Continue checking the remaining process
-			// todo JAMES: determine how drop makes use of delta and ft promise
 			continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 			return continuationError
@@ -1385,8 +1382,6 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 		// Check types of each parameter
 		for i := 1; i < len(p.parameters); i++ {
-
-			// todo JAMES: determine how delta affects name consumption for call
 			foundParamType, _, paramTypeError := consumeName(p.parameters[i], gammaNameTypesCtx, deltaNameTypesCtx)
 
 			if paramTypeError != nil {
@@ -1423,7 +1418,6 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 		// Check types of each parameter
 		for i := 0; i < len(p.parameters); i++ {
-			// todo JAMES: determine how delta affects name consumption for call
 			foundParamType, _, paramTypeError := consumeName(p.parameters[i], gammaNameTypesCtx, deltaNameTypesCtx)
 
 			if paramTypeError != nil {
@@ -1452,8 +1446,8 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	// Set type
 	p.ProviderType = functionSignature.Type
 
-	// make sure that no variables are left in gamma
-	if err := linearGammaContext(gammaNameTypesCtx); err != nil {
+	// make sure that no variables are left in gamma and delta
+	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
 	return nil
@@ -1527,7 +1521,7 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	return continuationError
 }
 
-// Split: <channel_one, channel_two> <- recv from_c; P
+// Split: <channel_one, channel_two> <- split from_c; P
 func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule SPLIT")
 
@@ -1536,8 +1530,7 @@ func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 		return TypeErrorf("expected '%s' to have a split a client, not itself ('%s' is acting as self)", p.StringShort(), p.from_c.String())
 	}
 
-	// todo JAMES: determine how delta affects name consumption for split
-	foundType, _, err := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
+	foundType, typeEnvironment, err := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 	foundType = types.Unfold(foundType, labelledTypesEnv)
 
 	if err != nil {
@@ -1551,12 +1544,24 @@ func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 		return TypeErrorf("variable names <%s, %s> already defined. Use unique names", p.channel_one.String(), p.channel_two.String())
 	}
 
+	if nameTypeExists(deltaNameTypesCtx, p.channel_one.Ident) ||
+		nameTypeExists(deltaNameTypesCtx, p.channel_two.Ident) {
+		// Names are not fresh
+		return TypeErrorf("variable names <%s, %s> already defined. Use unique names", p.channel_one.String(), p.channel_two.String())
+	}
+
 	if p.channel_one.Equal(p.channel_two) {
 		return TypeErrorf("variable names <%s, %s> are the same. Use unique names", p.channel_one.String(), p.channel_two.String())
 	}
 
-	gammaNameTypesCtx[p.channel_one.Ident] = NamesType{Type: foundType}
-	gammaNameTypesCtx[p.channel_two.Ident] = NamesType{Type: foundType} //todo not sure if i need to use CopyType
+	switch typeEnvironment {
+	case GAMMA:
+		gammaNameTypesCtx[p.channel_one.Ident] = NamesType{Type: foundType}
+		gammaNameTypesCtx[p.channel_two.Ident] = NamesType{Type: foundType} //todo not sure if i need to use CopyType
+	case DELTA:
+		deltaNameTypesCtx[p.channel_one.Ident] = NamesType{Type: foundType}
+		deltaNameTypesCtx[p.channel_two.Ident] = NamesType{Type: foundType}
+	}
 
 	if !types.IsContractable(foundType) {
 		return TypeErrorf("unable to split %s, which is in %s mode", p.from_c.String(), foundType.Modality().FullString())
@@ -1573,7 +1578,6 @@ func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 	}
 
 	// Continue checking the remaining process
-	// todo JAMES: determine how split makes use of delta and ft promise
 	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 	return continuationError
@@ -1679,7 +1683,7 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	}
 
 	// make sure that no variables are left in gamma
-	if err := linearGammaContext(gammaNameTypesCtx); err != nil {
+	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
 	return nil
@@ -1955,14 +1959,14 @@ func consumeNameMaybeSelf(name Name, providerShadowName *Name, gammaNameTypesCtx
 	return nil, fmt.Errorf("the requested name (%s) is not defined (has no type)", name.String())
 }
 
-func stringifyContext(gammaNameTypesCtx NamesTypesCtx) string {
-	if len(gammaNameTypesCtx) == 0 {
+func stringifyContext(nameTypesCtx NamesTypesCtx) string {
+	if len(nameTypesCtx) == 0 {
 		return ""
 	}
 
 	var buffer bytes.Buffer
 
-	for k := range gammaNameTypesCtx {
+	for k := range nameTypesCtx {
 		buffer.WriteString(k)
 		buffer.WriteString("; ")
 	}
@@ -1972,13 +1976,19 @@ func stringifyContext(gammaNameTypesCtx NamesTypesCtx) string {
 	return str[:len(str)-2]
 }
 
-// Enforce linearity, i.e. ensure that there are no variables left in Gamma
-func linearGammaContext(gammaNameTypesCtx NamesTypesCtx) error {
+// Enforce linearity, i.e. ensure that there are no variables left in Gamma and Delta
+func linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx NamesTypesCtx) error {
 	// todo change to allow weakenable variables (although drop prevents this)
 	if len(gammaNameTypesCtx) == 1 {
-		return fmt.Errorf("linearity requires that no names are left behind, however there is one names (%s) left", stringifyContext(gammaNameTypesCtx))
+		return fmt.Errorf("linearity requires that no names are left behind, however there is one name (%s) left", stringifyContext(gammaNameTypesCtx))
 	} else if len(gammaNameTypesCtx) > 1 {
 		return fmt.Errorf("linearity requires that no names are left behind, however there were %d names (%s) left", len(gammaNameTypesCtx), stringifyContext(gammaNameTypesCtx))
+	}
+
+	if len(deltaNameTypesCtx) == 1 {
+		return fmt.Errorf("linearity requires that no names are left behind, however there is one name (%s) left", stringifyContext(deltaNameTypesCtx))
+	} else if len(deltaNameTypesCtx) > 1 {
+		return fmt.Errorf("linearity requires that no names are left behind, however there were %d names (%s) left", len(deltaNameTypesCtx), stringifyContext(deltaNameTypesCtx))
 	}
 
 	// Ok, no unwanted variables left in gamma
