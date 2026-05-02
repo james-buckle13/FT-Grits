@@ -502,7 +502,7 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		return TypeErrorE(polarityError)
 	}
 
-	// make sure that no variables are left in gamma
+	// make sure that no variables are left in gamma and delta
 	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
@@ -535,6 +535,12 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 			return TypeErrorf("variable names <%s, %s> already defined. Use unique names in %s", p.payload_c.String(), p.continuation_c.String(), p.String())
 		}
 
+		if nameTypeExists(deltaNameTypesCtx, p.payload_c.Ident) ||
+			nameTypeExists(deltaNameTypesCtx, p.continuation_c.Ident) {
+			// Names are not fresh
+			return TypeErrorf("variable names <%s, %s> already defined. Use unique names in %s", p.payload_c.String(), p.continuation_c.String(), p.String())
+		}
+
 		if p.payload_c.Equal(p.continuation_c) {
 			return TypeErrorf("variable names <%s, %s> are the same. Use unique names", p.payload_c.String(), p.continuation_c.String())
 		}
@@ -549,7 +555,6 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 			return TypeErrorE(polarityError)
 		}
 
-		// todo JAMES: determine how recv makes use of delta and ft promise
 		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, &p.continuation_c, newRightType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
@@ -559,10 +564,13 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 		// MulL: *
 		globalEnv.log(LOGRULEDETAILS, "rule ⊗L (MulL)")
 
-		// todo JAMES: determine how delta affects name consumption for recv
-		clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
+		clientType, typeEnvironment, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
+		}
+
+		if typeEnvironment != GAMMA {
+			return TypeErrorf("expected '%s' to have an infallible 'from' channel", p.String())
 		}
 
 		clientType = types.Unfold(clientType, labelledTypesEnv)
@@ -585,6 +593,11 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 			return TypeErrorf("variable names <%s, %s> already defined. Use unique names", p.payload_c.String(), p.continuation_c.String())
 		}
 
+		if nameTypeExists(deltaNameTypesCtx, p.payload_c.Ident) ||
+			nameTypeExists(deltaNameTypesCtx, p.continuation_c.Ident) {
+			return TypeErrorf("variable names <%s, %s> already defined. Use unique names", p.payload_c.String(), p.continuation_c.String())
+		}
+
 		if isProvider(p.payload_c, providerShadowName) ||
 			isProvider(p.continuation_c, providerShadowName) {
 			// Unwanted reference to self
@@ -602,7 +615,6 @@ func (p *ReceiveForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTy
 			return TypeErrorE(polarityError)
 		}
 
-		// todo JAMES: determine how recv makes use of delta and ft promise
 		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
@@ -628,7 +640,6 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTyp
 		continuationType, continuationTypeFound := types.FetchSelectBranch(providerSelectLabelType.Branches, p.label.L)
 
 		if continuationTypeFound {
-			// todo JAMES: determine how delta affects name consumption for select
 			foundContinuationType, _, errorContinuationType := consumeName(p.continuation_c, gammaNameTypesCtx, deltaNameTypesCtx)
 
 			if errorContinuationType != nil {
@@ -647,9 +658,8 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTyp
 		}
 	} else if isProvider(p.continuation_c, providerShadowName) {
 		// EChoiceL: &{label1: T1, ...}
-		globalEnv.log(LOGRULEDETAILS, "rule & (EChoiceL)")
+		globalEnv.log(LOGRULEDETAILS, "rule &L (EChoiceL)")
 
-		// todo JAMES: determine how delta affects name consumption for select
 		clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
@@ -706,7 +716,7 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTyp
 func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	if isProvider(p.from_c, providerShadowName) {
 		// EChoiceR: &{label1: T1, ...}
-		globalEnv.log(LOGRULEDETAILS, "rule & (EChoiceR)")
+		globalEnv.log(LOGRULEDETAILS, "rule &R (EChoiceR)")
 
 		providerType = types.Unfold(providerType, labelledTypesEnv)
 		// The type of the provider must be BranchCaseType
@@ -743,11 +753,11 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 				return TypeErrorE(polarityError)
 			}
 
-			// Copy gamma so that each branch has its own version
+			// Copy gamma and delta so that each branch has its own version
 			newGammaNameTypesCtx := copyContext(gammaNameTypesCtx)
+			newDeltaNameTypesCtx := copyContext(deltaNameTypesCtx)
 
-			// todo JAMES: determine how case makes use of delta and ft promise
-			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, &curBranchForm.payload_c, expectedBranchType.SessionType, labelledTypesEnv, sigma, globalEnv)
+			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, newDeltaNameTypesCtx, faultTolerancePromise, &curBranchForm.payload_c, expectedBranchType.SessionType, labelledTypesEnv, sigma, globalEnv)
 
 			if continuationError != nil {
 				return continuationError
@@ -766,8 +776,7 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		// IChoiceL: +{label1: T1, ...}
 		globalEnv.log(LOGRULEDETAILS, "rule ⊕L (IChoiceL)")
 
-		// todo JAMES: determine how delta affects name consumption for case
-		clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
+		clientType, clientTypeEnvironment, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.StringShort(), errorClient)
 		}
@@ -799,11 +808,17 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 				return TypeErrorf("case labelled '%s' does not match the branches of type '%s'", curBranchForm.StringShort(), clientSelectLabelType.String())
 			}
 
-			// Copy gamma so that each branch has its own version
+			// Copy gamma and delta so that each branch has its own version
 			newGammaNameTypesCtx := copyContext(gammaNameTypesCtx)
+			newDeltaNameTypesCtx := copyContext(deltaNameTypesCtx)
 
-			// curBranchForm.payload_c cannot exist in gammaNameTypesCtx
-			newGammaNameTypesCtx[curBranchForm.payload_c.Ident] = NamesType{Type: expectedBranchType.SessionType}
+			switch clientTypeEnvironment {
+			case GAMMA:
+				// curBranchForm.payload_c cannot exist in gammaNameTypesCtx
+				newGammaNameTypesCtx[curBranchForm.payload_c.Ident] = NamesType{Type: expectedBranchType.SessionType}
+			case DELTA:
+				newDeltaNameTypesCtx[curBranchForm.payload_c.Ident] = NamesType{Type: expectedBranchType.SessionType}
+			}
 
 			// Set type
 			curBranchForm.payload_c.Type = expectedBranchType.SessionType
@@ -813,8 +828,7 @@ func (p *CaseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 				return TypeErrorE(polarityError)
 			}
 
-			// todo JAMES: determine how case makes use of delta and ft promsie
-			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+			continuationError := curBranchForm.continuation_e.typecheckForm(newGammaNameTypesCtx, newDeltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 			if continuationError != nil {
 				return continuationError
@@ -1519,8 +1533,11 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	// if types of channels being synced are equal, then this variable is used as the type of the bridge channel
 	typeOfSyncedChans := providedTypesOfSyncedChans[0]
 
-	// the bridge channel is infallible so we check in gamma
 	if nameTypeExists(gammaNameTypesCtx, p.bridge_c.Ident) {
+		return TypeErrorf("variable name '%s' already defined. Use a unique name", p.bridge_c.String())
+	}
+
+	if nameTypeExists(deltaNameTypesCtx, p.bridge_c.Ident) {
 		return TypeErrorf("variable name '%s' already defined. Use a unique name", p.bridge_c.String())
 	}
 
