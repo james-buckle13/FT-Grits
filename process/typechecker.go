@@ -1645,7 +1645,7 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 		expectedContinuationType := providerDownType.Continuation
 		expectedContinuationType = types.Unfold(expectedContinuationType, labelledTypesEnv)
-		// todo JAMES: determine how delta affects name consumption for cast
+
 		foundContinuationType, _, errorContinuation := consumeName(p.continuation_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		foundContinuationType = types.Unfold(foundContinuationType, labelledTypesEnv)
 
@@ -1670,7 +1670,6 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		// Downshift UpSL: /\
 		globalEnv.log(LOGRULEDETAILS, "rule ↑L (UpSL, Cast)")
 
-		// todo JAMES: determine how delta affects name consumption for cast
 		clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
@@ -1722,7 +1721,7 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		return TypeErrorE(polarityError)
 	}
 
-	// make sure that no variables are left in gamma
+	// make sure that no variables are left in gamma and delta
 	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
@@ -1757,6 +1756,11 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 			return TypeErrorf("variable names '%s' is already defined. Use unique name in %s", p.continuation_c.String(), p.String())
 		}
 
+		if nameTypeExists(deltaNameTypesCtx, p.continuation_c.Ident) {
+			// Names are not fresh
+			return TypeErrorf("variable names '%s' is already defined. Use unique name in %s", p.continuation_c.String(), p.String())
+		}
+
 		p.from_c.Type = providerUpType
 		p.continuation_c.Type = expectedContinuationType
 
@@ -1764,7 +1768,6 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 			return TypeErrorE(polarityError)
 		}
 
-		// todo JAMES: determine how shift makes use of delta and ft promise
 		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, &p.continuation_c, expectedContinuationType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
@@ -1774,8 +1777,7 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 		// DnSL: \/
 		globalEnv.log(LOGRULEDETAILS, "rule ↓L (DnSL, Shift)")
 
-		// todo JAMES: determine how delta affects name consumption for shift
-		clientType, _, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
+		clientType, clientTypeEnvironment, errorClient := consumeName(p.from_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
 		}
@@ -1802,12 +1804,21 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 			return TypeErrorf("variable name '%s' is already defined. Use unique names", p.continuation_c.String())
 		}
 
+		if nameTypeExists(deltaNameTypesCtx, p.continuation_c.Ident) {
+			return TypeErrorf("variable name '%s' is already defined. Use unique names", p.continuation_c.String())
+		}
+
 		if isProvider(p.continuation_c, providerShadowName) {
 			// Unwanted reference to self
 			return TypeErrorf("variable names '%s' should not refer to self", p.continuation_c.String())
 		}
 
-		gammaNameTypesCtx[p.continuation_c.Ident] = NamesType{Type: newContinuationType}
+		switch clientTypeEnvironment {
+		case GAMMA:
+			gammaNameTypesCtx[p.continuation_c.Ident] = NamesType{Type: newContinuationType}
+		case DELTA:
+			deltaNameTypesCtx[p.continuation_c.Ident] = NamesType{Type: newContinuationType}
+		}
 
 		p.from_c.Type = clientDownType
 		p.continuation_c.Type = newContinuationType
@@ -1816,7 +1827,6 @@ func (p *ShiftForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 			return TypeErrorE(polarityError)
 		}
 
-		// todo JAMES: determine how shift makes use of delta and ft promise
 		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
@@ -1828,7 +1838,6 @@ func (p *PrintForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 	globalEnv.log(LOGRULEDETAILS, "rule PRINT")
 
 	// Continue checking the remaining process
-	// todo JAMES: determine how print makes use of delta and ft promsie
 	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 	return continuationError
 }
