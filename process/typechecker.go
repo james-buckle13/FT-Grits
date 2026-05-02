@@ -391,11 +391,24 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 		expectedLeftType := providerSendType.Left
 		expectedRightType := providerSendType.Right
-		// todo JAMES: determine how delta affects name consumption for send
-		foundLeftType, _, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx, deltaNameTypesCtx)
+
+		expectedLeftType = types.Unfold(expectedLeftType, labelledTypesEnv)
+		expectedRightType = types.Unfold(expectedRightType, labelledTypesEnv)
+
+		foundLeftType, payloadTypeEnvironment, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx, deltaNameTypesCtx)
+
+		if payloadTypeEnvironment != GAMMA {
+			return TypeErrorf("expected '%s' to have an infallible payload", p.String())
+		}
+
 		foundLeftType = types.Unfold(foundLeftType, labelledTypesEnv)
-		// todo JAMES: determine how delta affects name consumption for send
-		foundRightType, _, errorRight := consumeName(p.continuation_c, gammaNameTypesCtx, deltaNameTypesCtx)
+
+		foundRightType, continuationTypeEnvironment, errorRight := consumeName(p.continuation_c, gammaNameTypesCtx, deltaNameTypesCtx)
+
+		if continuationTypeEnvironment != GAMMA {
+			return TypeErrorf("expected '%s' to have an infallible continuation", p.String())
+		}
+
 		foundRightType = types.Unfold(foundRightType, labelledTypesEnv)
 
 		if errorLeft != nil {
@@ -424,10 +437,13 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		// ImpL: -*
 		globalEnv.log(LOGRULEDETAILS, "rule ⊸L (ImpL)")
 
-		// todo JAMES: determine how delta affects name consumption for send
-		clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
+		clientType, toTypeEnvironment, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 		if errorClient != nil {
 			return TypeErrorf("error in %s; %s", p.String(), errorClient)
+		}
+
+		if toTypeEnvironment != GAMMA {
+			return TypeErrorf("expected '%s' to have an infallible 'to' channel", p.String())
 		}
 
 		clientType = types.Unfold(clientType, labelledTypesEnv)
@@ -441,9 +457,14 @@ func (p *SendForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 
 		expectedLeftType := clientReceiveType.Left
 		expectedRightType := clientReceiveType.Right
-		// todo JAMES: determine how delta affects name consumption for send
-		foundLeftType, _, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx, deltaNameTypesCtx)
-		foundRightType, errorRight := consumeNameMaybeSelf(p.continuation_c, providerShadowName, gammaNameTypesCtx, providerType)
+
+		foundLeftType, payloadTypeEnvironment, errorLeft := consumeName(p.payload_c, gammaNameTypesCtx, deltaNameTypesCtx)
+
+		if payloadTypeEnvironment != GAMMA {
+			return TypeErrorf("expected '%s' to have an infallible payload", p.String())
+		}
+
+		foundRightType, errorRight := consumeNameMaybeSelf(p.continuation_c, providerShadowName, gammaNameTypesCtx, deltaNameTypesCtx, providerType)
 
 		expectedLeftType = types.Unfold(expectedLeftType, labelledTypesEnv)
 		expectedRightType = types.Unfold(expectedRightType, labelledTypesEnv)
@@ -647,7 +668,7 @@ func (p *SelectForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTyp
 		continuationType, continuationTypeFound := types.FetchSelectBranch(clientBranchCaseType.Branches, p.label.L)
 
 		if continuationTypeFound {
-			foundContinuationType, errorContinuationType := consumeNameMaybeSelf(p.continuation_c, providerShadowName, gammaNameTypesCtx, providerType)
+			foundContinuationType, errorContinuationType := consumeNameMaybeSelf(p.continuation_c, providerShadowName, gammaNameTypesCtx, deltaNameTypesCtx, providerType)
 
 			if errorContinuationType != nil {
 				return TypeErrorf("error in %s; %s", p.String(), errorContinuationType)
@@ -1222,7 +1243,7 @@ func (p *CloseForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 		}
 	}
 
-	// make sure that no variables are left in gamma
+	// make sure that no variables are left in gamma and delta
 	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
 		return TypeErrorE(err)
 	}
@@ -1247,10 +1268,13 @@ func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		}
 	}
 
-	// todo JAMES: determine how delta affects name consumption for wait
-	clientType, _, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
+	clientType, typeEnvironment, errorClient := consumeName(p.to_c, gammaNameTypesCtx, deltaNameTypesCtx)
 	if errorClient != nil {
 		return TypeErrorf("error in %s; %s", p.String(), errorClient)
+	}
+
+	if typeEnvironment != GAMMA {
+		return TypeErrorf("expected to wait on an infallible channel, instead found a fallible channel")
 	}
 
 	clientType = types.Unfold(clientType, labelledTypesEnv)
@@ -1267,7 +1291,6 @@ func (p *WaitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		}
 
 		// Continue checking the remaining process
-		// todo JAMES: determine how wait makes use of delta and ft promise
 		continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 		return continuationError
@@ -1652,7 +1675,7 @@ func (p *CastForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 		}
 
 		expectedContinuationType := clientUpType.Continuation
-		foundContinuationType, errorContinuation := consumeNameMaybeSelf(p.continuation_c, providerShadowName, gammaNameTypesCtx, providerType)
+		foundContinuationType, errorContinuation := consumeNameMaybeSelf(p.continuation_c, providerShadowName, gammaNameTypesCtx, deltaNameTypesCtx, providerType)
 
 		expectedContinuationType = types.Unfold(expectedContinuationType, labelledTypesEnv)
 		foundContinuationType = types.Unfold(foundContinuationType, labelledTypesEnv)
@@ -1936,8 +1959,8 @@ func consumeName(name Name, gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx N
 	return nil, UNKNOWN, fmt.Errorf("the requested name (%s) is not defined (has no type)", name.String())
 }
 
-// Takes a name from gamma. If the name is 'self', then return the provider type instead of fetching it from gamma
-func consumeNameMaybeSelf(name Name, providerShadowName *Name, gammaNameTypesCtx NamesTypesCtx, providerType types.SessionType) (types.SessionType, error) {
+// Takes a name from gamma or delta. If the name is 'self', then return the provider type instead of fetching it from gamma
+func consumeNameMaybeSelf(name Name, providerShadowName *Name, gammaNameTypesCtx, deltaNameTypesCtx NamesTypesCtx, providerType types.SessionType) (types.SessionType, error) {
 	if name.IsSelf {
 		return providerType, nil
 	}
@@ -1946,16 +1969,25 @@ func consumeNameMaybeSelf(name Name, providerShadowName *Name, gammaNameTypesCtx
 		return providerType, nil
 	}
 
-	foundName, ok := gammaNameTypesCtx[name.Ident]
+	foundNameGamma, okGamma := gammaNameTypesCtx[name.Ident]
 
-	if ok {
+	if okGamma {
 		// If linear then remove
 		delete(gammaNameTypesCtx, name.Ident)
 
-		return foundName.Type, nil
+		return foundNameGamma.Type, nil
 	}
 
-	// Problem since the requested name was not found in the gamma
+	foundNameDelta, okDelta := deltaNameTypesCtx[name.Ident]
+
+	if okDelta {
+		// If linear then remove
+		delete(deltaNameTypesCtx, name.Ident)
+
+		return foundNameDelta.Type, nil
+	}
+
+	// Problem since the requested name was not found in the gamma or delta
 	return nil, fmt.Errorf("the requested name (%s) is not defined (has no type)", name.String())
 }
 
