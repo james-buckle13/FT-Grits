@@ -247,7 +247,7 @@ func preliminaryProcessesChecks(processes []*Process, assumedFreeNames []Name, g
 			processNameCanBeUsed, foundInProcessNames := allProcessNames[fn.Ident]
 
 			if !foundInAssumed && !foundInProcessNames {
-				return fmt.Errorf("(%s) in process definition %s, the name %s is not defined. Use 'assume %s : T'", processes[i].Position.String(), processes[i].OutlineString(), fn.Ident, fn.Ident)
+				return fmt.Errorf("(%s) in process definition %s, the name %s is not defined. Use 'assuming %s : T'", processes[i].Position.String(), processes[i].OutlineString(), fn.Ident, fn.Ident)
 			} else if foundInAssumed && assumedNameCanBeUsed {
 				// Referring to an assumed free name
 				remainingAssumedFreeNames[fn.Ident] = false
