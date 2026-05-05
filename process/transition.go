@@ -720,6 +720,8 @@ func (f *ForwardForm) Transition(process *Process, re *RuntimeEnvironment) {
 			re.error(process, "a positive forward should never receive RCV messages")
 		case CUT:
 			re.error(process, "a positive forward should never receive CUT messages")
+		case FALCUT:
+			re.error(process, "a positive forward should never receive FALCUT messages")
 		case CALL:
 			re.error(process, "a positive forward should never receive CALL messages")
 		case SPLIT:
