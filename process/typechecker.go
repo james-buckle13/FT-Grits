@@ -1210,7 +1210,7 @@ func (p *SpawnForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameType
 				return TypeErrorE(polarityError)
 			}
 
-			// typecheck the continuation of the cut rule
+			// typecheck the continuation of the falcut rule
 			continuationBodyError := p.continuation_e.typecheckForm(gammaRightNameTypesCtx, deltaRightNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
 
 			if continuationBodyError != nil {
