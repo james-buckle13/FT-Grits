@@ -331,7 +331,7 @@ func (f *NewForm) Transition(process *Process, re *RuntimeEnvironment) {
 func (f *SpawnForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of spawn: %s\n", f.String())
 
-	newRule := func() {
+	spawnRule := func() {
 		// This name is indicative only (for debugging), since there shouldn't be more than one process with the same channel name
 		// Although channels may have an ID, processes (i.e. goroutines) are anonymous
 		newChannelIdent := f.spawned_name_c.Ident
@@ -364,7 +364,7 @@ func (f *SpawnForm) Transition(process *Process, re *RuntimeEnvironment) {
 		process.transitionLoop(re)
 	}
 
-	TransitionInternally(process, newRule, re)
+	TransitionInternally(process, spawnRule, re)
 }
 
 // CALL rule
