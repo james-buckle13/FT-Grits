@@ -1494,9 +1494,27 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 func (p *LetForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule LET")
 
-	// if p.val
+	if nameTypeExists(gammaNameTypesCtx, p.bound_var.Ident) {
+		return TypeErrorf("variable name '%s' already defined. Use a unique name", p.bound_var.String())
+	}
 
-	return nil
+	if nameTypeExists(deltaNameTypesCtx, p.bound_var.Ident) {
+		return TypeErrorf("variable name '%s' already defined. Use a unique name", p.bound_var.String())
+	}
+
+	// adding the bound variable channel to gamma, treated as infallible since values are considered infallible
+	gammaNameTypesCtx[p.bound_var.Ident] = NamesType{Type: types.NewIntType(types.DefaultMode())}
+
+	// setting the types
+	p.bound_var.Type = types.NewIntType(types.DefaultMode())
+
+	if polarityError := checkExplicitPolarityValidity(p, p.bound_var); polarityError != nil {
+		return TypeErrorE(polarityError)
+	}
+
+	continuationError := p.continuation_e.typecheckForm(gammaNameTypesCtx, deltaNameTypesCtx, faultTolerancePromise, providerShadowName, providerType, labelledTypesEnv, sigma, globalEnv)
+
+	return continuationError
 }
 
 // Sync: bridge_c <- sync <channels_to_be_synced>; continuation_e
