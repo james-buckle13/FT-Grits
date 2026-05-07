@@ -395,7 +395,7 @@ func (s *scanner) scanSpecialSymbol(ch rune) (token tok, value string, startPos,
 			// is -o
 			s.lastToken = LOLLI
 			return LOLLI, "-o", startPos, endPos
-		} else if isAlphaNum(ch2) && s.lastToken == AT { // this is to ensure parsing error since ft promise cannot be negative
+		} else if isAlphaNum(ch2) {
 			s.unread()
 			return s.scanLabel(ch)
 		} else {
