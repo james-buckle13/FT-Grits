@@ -21,7 +21,7 @@ type Form interface {
 	Transition(*Process, *RuntimeEnvironment)
 	TransitionNP(*Process, *RuntimeEnvironment)
 	// Main typing judgement
-	typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, a types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError
+	typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, a types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError
 }
 
 ///////////////////////////////

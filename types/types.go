@@ -570,6 +570,11 @@ func innerEqualType(type1, type2 SessionType, snapshots map[string]bool, labelle
 		f2, ok2 := type2.(*UnitType)
 		return ok1 && ok2 && f1.Modality().Equals(f2.Modality())
 
+	case *IntType:
+		f1, ok1 := type1.(*IntType)
+		f2, ok2 := type2.(*IntType)
+		return ok1 && ok2 && f1.Modality().Equals(f2.Modality())
+
 	case *SendType:
 		f1, ok1 := type1.(*SendType)
 		f2, ok2 := type2.(*SendType)
@@ -686,6 +691,11 @@ func CopyType(orig SessionType) SessionType {
 		p, ok := orig.(*UnitType)
 		if ok {
 			return NewUnitType(p.Mode.Copy())
+		}
+	case *IntType:
+		p, ok := orig.(*IntType)
+		if ok {
+			return NewIntType(p.Mode.Copy())
 		}
 	case *SendType:
 		p, ok := orig.(*SendType)

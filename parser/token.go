@@ -85,6 +85,10 @@ func isWhitespace(ch rune) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\v' || ch == '\r'
 }
 
+func isDigit(ch rune) bool {
+	return '0' <= ch && ch <= '9'
+}
+
 func isAlphaNum(ch rune) bool {
 	return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z') || ('0' <= ch && ch <= '9')
 }

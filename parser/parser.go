@@ -41,7 +41,7 @@ type incompleteProcess struct {
 	Body                  process.Form
 	Providers             []process.Name
 	Type                  types.SessionType
-	FaultTolerancePromise uint64
+	FaultTolerancePromise int
 }
 
 func ParseString(program string) ([]*process.Process, []process.Name, *process.GlobalEnvironment, error) {

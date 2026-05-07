@@ -14,7 +14,7 @@ type Process struct {
 	Shape                 Shape
 	Type                  types.SessionType
 	Position              position.Position
-	FaultTolerancePromise uint64
+	FaultTolerancePromise int
 }
 
 func NewProcess(body Form, providers []Name, session_type types.SessionType, shape Shape, position position.Position) *Process {
@@ -34,7 +34,7 @@ func (p *Process) OutlineString() string {
 	buf.WriteString("[")
 	buf.WriteString(NamesToString(p.Providers))
 	buf.WriteString("] @ ")
-	buf.WriteString(strconv.FormatUint(p.FaultTolerancePromise, 10))
+	buf.WriteString(strconv.FormatInt(int64(p.FaultTolerancePromise), 10))
 	return buf.String()
 }
 
@@ -55,7 +55,7 @@ type FunctionDefinition struct {
 	ExplicitProvider      Name              // Optional name to be used instead of 'self'
 	UsesExplicitProvider  bool              // ExplicitProvider set or not
 	Position              position.Position // Line and character position where function is first defined
-	FaultTolerancePromise uint64
+	FaultTolerancePromise int
 }
 
 func (function *FunctionDefinition) Arity() int {
@@ -68,7 +68,7 @@ func (function *FunctionDefinition) String() string {
 	buffer.WriteString("(")
 	buffer.WriteString(NamesToString(function.Parameters))
 	buffer.WriteString(") @ ")
-	buffer.WriteString(strconv.FormatUint(function.FaultTolerancePromise, 10))
+	buffer.WriteString(strconv.FormatInt(int64(function.FaultTolerancePromise), 10))
 	return buffer.String()
 }
 

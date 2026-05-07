@@ -5,7 +5,6 @@ package parser
 
 import (
 	"io"
-	"strconv"
 	"grits/process"
 	"grits/types"
 	"grits/position"
@@ -26,7 +25,6 @@ import (
 	sessionTypeInitial 	  types.SessionTypeInitial
 	sessionTypeAltInitial []types.OptionInitial
 	polarity 		      types.Polarity
-	faultTolerancePromise uint64
 	integer 			  int
 }
 
@@ -52,7 +50,6 @@ import (
 %type <sessionTypeAltInitial> session_type_options_init
 %type <sessionTypeInitial> session_type_init
 %type <polarity> polarity
-%type <faultTolerancePromise> fault_tolerance_promise
 %type <integer> INT
 
 %left SEQUENCE RANGLE
@@ -90,9 +87,9 @@ statements : process_def             { $$ = []unexpandedProcessOrFunction{$1} }
 /* A process is defined using the prc keyword */
 process_def : 
 			/* without type - todo remove option to force types */
-		    PRC LSBRACK names RSBRACK AT fault_tolerance_promise EQUALS expression 
+		    PRC LSBRACK names RSBRACK AT INT EQUALS expression 
 				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$8, Providers: $3, FaultTolerancePromise: $6}, position: gritsVAL.currPosition} }
-		  | PRC LSBRACK names RSBRACK COLON session_type AT fault_tolerance_promise EQUALS expression 
+		  | PRC LSBRACK names RSBRACK COLON session_type AT INT EQUALS expression 
 				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$10, Type: $6, Providers: $3, FaultTolerancePromise: $8}, position: gritsVAL.currPosition} };
 		/*| SPRC LSBRACK names RSBRACK COLON expression
 				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$6, Providers: $3}, position: gritsVAL.currPosition} };*/
@@ -184,26 +181,17 @@ name : SELF { $$ = process.Name{IsSelf: true} }
 		{ pol := $1
 		  $$ = process.Name{Ident: $2, IsSelf: false, ExplicitPolarity: &pol} };
 
-fault_tolerance_promise: LABEL {		
-		ftPromise, err := strconv.ParseUint($1, 10, 64)
-        
-        if err != nil {
-            gritslex.Error("fault tolerance promise must be a non-negative integer")
-        } 
-		
-		$$ = ftPromise };
-
 assuming_def : ASSUMING names_with_type_ann
 			{ $$ = unexpandedProcessOrFunction{kind: ASSUMING_DEF, assumedFreeNameTypes: $2, position: gritsVAL.currPosition} };
 
 function_def : 
 			/* without type - todo remove option to force types */
-			 DEF LABEL LPAREN optional_names_with_type_ann RPAREN AT fault_tolerance_promise EQUALS expression
+			 DEF LABEL LPAREN optional_names_with_type_ann RPAREN AT INT EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $9, UsesExplicitProvider: false, FaultTolerancePromise: $7}, position: gritsVAL.currPosition} }
-			| /* with type annotation */ DEF LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type AT fault_tolerance_promise EQUALS expression
+			| /* with type annotation */ DEF LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type AT INT EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $11, Type: $7, UsesExplicitProvider: false, FaultTolerancePromise: $9}, position: gritsVAL.currPosition} }
 			| /* explicit provider name : without type - todo remove option to force types */
-			 DEF LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression
+			 DEF LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK AT INT EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 
@@ -215,7 +203,7 @@ function_def :
 								// Type: $6,
 								}, position: gritsVAL.currPosition} }
 			| /* explicit provider name :  with type annotation */
-			 DEF LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression 
+			 DEF LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK AT INT EQUALS expression 
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 

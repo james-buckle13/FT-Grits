@@ -131,12 +131,37 @@ func (s *scanner) Scan() (token tok, value string, startPos, endPos TokenPos) {
 		return s.scanSpecialSymbol(ch)
 	}
 
+	// this is placed before the condition which scans a label to ensure that integer values are not treated as labels
+	if isDigit(ch) {
+		return s.scanInteger(ch)
+	}
+
 	if isAlphaNum(ch) || isUnderscore(ch) || isApostrophe(ch) {
 		// s.unread()
 		return s.scanLabel(ch)
 	}
 
 	return kILLEGAL, string(ch), startPos, endPos
+}
+
+func (s *scanner) scanInteger(ch rune) (token tok, value string, startPos, endPos TokenPos) {
+	var buf bytes.Buffer
+	startPos = s.pos
+	defer func() { endPos = s.pos }()
+	buf.WriteRune(ch)
+
+	for {
+		ch := s.read()
+		if isDigit(ch) {
+			_, _ = buf.WriteRune(ch)
+		} else {
+			s.unread()
+			break
+		}
+	}
+
+	s.lastToken = INT
+	return INT, buf.String(), startPos, endPos
 }
 
 // Scan label or keyword
@@ -380,8 +405,10 @@ func (s *scanner) scanSpecialSymbol(ch rune) (token tok, value string, startPos,
 			return MINUS, "-", startPos, endPos
 		}
 	case '1':
-		// Can be 1 or label starting with 1
-		if isAlphaNum(ch2) || isUnderscore(ch2) || isApostrophe(ch2) || s.lastToken == AT {
+		if s.lastToken == EQUALS || s.lastToken == AT {
+			s.unread()
+			return s.scanInteger(ch)
+		} else if isAlphaNum(ch2) || isUnderscore(ch2) || isApostrophe(ch2) {
 			// is a label
 			s.unread()
 			return s.scanLabel(ch)

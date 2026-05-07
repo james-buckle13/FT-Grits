@@ -15,10 +15,9 @@ import (
 	"grits/process"
 	"grits/types"
 	"io"
-	"strconv"
 )
 
-//line parser/parser.y:16
+//line parser/parser.y:15
 type gritsSymType struct {
 	yys                   int
 	strval                string
@@ -33,7 +32,6 @@ type gritsSymType struct {
 	sessionTypeInitial    types.SessionTypeInitial
 	sessionTypeAltInitial []types.OptionInitial
 	polarity              types.Polarity
-	faultTolerancePromise uint64
 	integer               int
 }
 
@@ -168,7 +166,7 @@ const gritsEofCode = 1
 const gritsErrCode = 2
 const gritsInitialStackSize = 16
 
-//line parser/parser.y:287
+//line parser/parser.y:275
 
 // Parse is the entry point to the parser.
 func Parse(r io.Reader) (allEnvironment, error) {
@@ -191,96 +189,100 @@ var gritsExca = [...]int8{
 	1, -1,
 	-2, 0,
 	-1, 73,
-	4, 78,
-	7, 78,
-	8, 78,
-	14, 78,
-	46, 78,
-	49, 78,
-	50, 78,
-	62, 78,
-	-2, 66,
+	4, 77,
+	7, 77,
+	8, 77,
+	14, 77,
+	46, 77,
+	49, 77,
+	50, 77,
+	62, 77,
+	-2, 65,
 }
 
 const gritsPrivate = 57344
 
-const gritsLast = 283
+const gritsLast = 322
 
 var gritsAct = [...]uint8{
-	3, 180, 148, 111, 160, 9, 70, 124, 120, 59,
-	88, 184, 156, 58, 227, 15, 45, 215, 202, 6,
-	68, 199, 5, 178, 8, 10, 12, 13, 65, 106,
-	141, 176, 71, 14, 107, 27, 26, 113, 27, 26,
-	25, 112, 72, 25, 11, 23, 17, 30, 31, 211,
-	66, 67, 142, 28, 29, 54, 28, 29, 183, 155,
-	154, 16, 7, 220, 194, 189, 99, 100, 32, 34,
-	151, 37, 168, 40, 41, 42, 43, 44, 193, 46,
-	33, 190, 165, 117, 106, 119, 153, 73, 121, 107,
-	109, 110, 191, 132, 217, 53, 72, 78, 72, 127,
-	125, 129, 80, 106, 81, 108, 140, 128, 107, 101,
-	138, 114, 136, 145, 147, 139, 150, 98, 89, 83,
-	23, 62, 30, 31, 186, 96, 97, 152, 4, 76,
-	122, 102, 77, 74, 157, 166, 167, 55, 169, 143,
-	144, 158, 172, 173, 130, 75, 118, 48, 49, 50,
-	51, 52, 90, 95, 91, 179, 115, 85, 161, 162,
-	72, 133, 69, 182, 89, 72, 162, 38, 187, 39,
-	188, 159, 125, 185, 131, 123, 116, 93, 174, 89,
-	175, 63, 177, 94, 219, 200, 89, 218, 72, 196,
-	195, 201, 203, 206, 163, 192, 209, 210, 137, 212,
-	135, 213, 134, 171, 216, 87, 84, 82, 237, 221,
-	197, 36, 232, 73, 222, 224, 35, 225, 164, 228,
-	229, 226, 9, 78, 231, 223, 214, 233, 198, 234,
-	92, 235, 15, 236, 109, 110, 6, 86, 238, 5,
-	230, 8, 10, 12, 13, 208, 105, 181, 149, 60,
-	14, 170, 146, 204, 205, 76, 207, 126, 77, 74,
-	104, 11, 23, 17, 30, 31, 64, 61, 57, 56,
-	47, 75, 2, 1, 24, 103, 79, 22, 16, 21,
-	20, 19, 18,
+	3, 160, 148, 111, 59, 88, 70, 124, 233, 58,
+	224, 71, 215, 7, 212, 199, 45, 180, 120, 32,
+	34, 183, 37, 156, 40, 41, 42, 43, 44, 73,
+	46, 226, 109, 110, 214, 201, 198, 178, 176, 78,
+	27, 26, 72, 141, 106, 25, 210, 73, 68, 107,
+	113, 112, 154, 80, 54, 81, 65, 78, 28, 29,
+	219, 189, 55, 193, 188, 142, 99, 100, 182, 89,
+	155, 76, 190, 151, 77, 74, 96, 97, 66, 67,
+	168, 106, 102, 117, 108, 119, 107, 75, 121, 76,
+	114, 33, 77, 74, 53, 125, 72, 118, 72, 127,
+	165, 129, 153, 128, 4, 75, 106, 136, 132, 192,
+	140, 107, 133, 145, 147, 89, 150, 101, 143, 144,
+	98, 83, 152, 48, 49, 50, 51, 52, 62, 157,
+	89, 23, 216, 30, 31, 166, 167, 89, 169, 138,
+	185, 158, 172, 173, 139, 163, 122, 90, 95, 91,
+	130, 115, 85, 69, 171, 179, 38, 174, 39, 175,
+	72, 161, 162, 181, 162, 72, 159, 125, 186, 184,
+	187, 131, 123, 116, 93, 63, 177, 94, 218, 217,
+	195, 194, 191, 137, 135, 134, 87, 72, 202, 196,
+	200, 84, 205, 82, 36, 208, 209, 236, 211, 35,
+	231, 225, 222, 203, 204, 213, 206, 197, 220, 109,
+	110, 229, 92, 221, 223, 86, 207, 164, 227, 228,
+	105, 9, 149, 230, 60, 170, 232, 146, 126, 104,
+	234, 15, 235, 64, 61, 6, 57, 237, 5, 56,
+	8, 10, 12, 13, 47, 2, 1, 24, 103, 14,
+	79, 22, 21, 20, 27, 26, 19, 18, 0, 25,
+	11, 23, 17, 30, 31, 9, 0, 0, 0, 0,
+	0, 0, 28, 29, 0, 15, 0, 16, 0, 6,
+	0, 0, 5, 0, 8, 10, 12, 13, 0, 0,
+	0, 0, 0, 14, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 11, 23, 17, 30, 31, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 16,
 }
 
 var gritsPact = [...]int16{
-	1, -1000, -1000, -1000, -1000, 76, 76, 206, 76, 155,
-	76, 76, 76, 76, 76, 218, 76, 266, -2, -2,
-	-2, -2, -2, -1000, 51, 121, 265, 264, 245, 263,
-	-1000, -1000, 103, -1000, 168, 262, -7, 148, 209, 76,
-	-1000, 76, 196, 101, 195, 142, 228, 194, -1000, -1000,
-	-1000, -1000, -1000, -1000, -1000, 76, 138, 221, -1000, 164,
-	171, 139, 76, 76, 99, 218, 218, 91, 76, 256,
-	241, -19, 83, -1000, -1000, -1000, -10, -14, 209, 141,
-	163, -1000, 218, 76, 218, -1000, -53, 218, 113, 162,
-	245, 253, 209, 245, 209, 129, 161, 74, 76, 191,
-	189, 76, 187, 95, 88, -5, 209, 209, -19, 248,
-	248, 227, 244, 244, 55, -1000, 76, -1000, 67, -1000,
-	21, -1000, 0, 76, 126, 158, 146, -1000, -1000, -1000,
-	-1000, 76, 213, 63, 218, 218, 53, 218, -1000, 247,
-	76, 218, 218, -19, -19, 209, -1000, 209, -21, 170,
-	-29, -1000, -1000, -1000, 218, 243, 209, -1000, -1, 245,
-	107, 209, 245, 46, 59, -1000, -1000, -1000, 184, -1000,
-	60, 45, 179, 178, -19, -19, -1000, 209, -1000, -1000,
-	219, -1000, -38, 243, 209, -1000, -41, 153, -1000, -1000,
-	76, 76, 218, 76, 239, 218, 218, 36, 218, 243,
-	217, -42, 243, 77, 176, 173, -1000, 44, 218, -1000,
-	-1000, 244, -1000, 216, 218, 243, 212, -45, 218, 218,
-	234, -1000, -1000, 218, -1000, 203, 218, 243, -1000, -1000,
-	218, -1000, 218, -1000, 199, -1000, -1000, 218, -1000,
+	217, -1000, -1000, -1000, -1000, 87, 87, 189, 87, 144,
+	87, 87, 87, 87, 87, 261, 87, 240, 3, 3,
+	3, 3, 3, -1000, 50, 46, 235, 232, 220, 230,
+	-1000, -1000, 110, -1000, 162, 229, 21, 139, 43, 87,
+	-1000, 87, 182, 103, 180, 137, 206, 175, -1000, -1000,
+	-1000, -1000, -1000, -1000, -1000, 87, 133, 203, -1000, 161,
+	165, 134, 87, 87, 102, 261, 261, 99, 87, 225,
+	215, -4, 25, -1000, -1000, -1000, 0, -1, 43, 136,
+	160, -1000, 261, 87, 261, -1000, -43, 261, 129, 159,
+	220, 224, 43, 220, 43, 135, 158, 89, 87, 174,
+	173, 87, 172, 124, 92, 8, 43, 43, -4, 223,
+	223, 202, 218, 218, 58, -1000, 87, -1000, 83, -1000,
+	13, -1000, 11, 87, 126, 153, 149, -1000, -1000, -1000,
+	-1000, 87, 212, 81, 261, 261, 61, 261, -1000, 221,
+	87, 261, 261, -4, -4, 43, -1000, 43, -14, 164,
+	-15, -1000, -1000, -1000, 261, -44, 43, -1000, 9, 220,
+	123, 43, 220, 45, 39, -1000, -1000, -1000, 171, -1000,
+	91, 44, 170, 169, -4, -4, -1000, 43, -1000, -1000,
+	198, -23, -46, 43, -1000, -24, 151, -1000, -1000, 87,
+	87, 261, 87, 210, 261, 261, 33, 261, -47, 196,
+	-25, -49, 115, 168, 167, -1000, 41, 261, -1000, -1000,
+	218, -1000, 193, 261, -51, 192, -28, 261, 261, 205,
+	-1000, -1000, 261, -1000, 191, 261, -53, -1000, -1000, 261,
+	-1000, 261, -1000, 188, -1000, -1000, 261, -1000,
 }
 
 var gritsPgo = [...]int16{
-	0, 128, 282, 281, 280, 279, 277, 0, 62, 9,
-	10, 276, 7, 4, 13, 3, 275, 6, 2, 32,
-	274, 1, 273, 272,
+	0, 104, 257, 256, 253, 252, 251, 0, 13, 4,
+	5, 250, 7, 1, 9, 3, 248, 6, 2, 11,
+	247, 246, 245,
 }
 
 var gritsR1 = [...]int8{
-	0, 22, 23, 23, 1, 1, 1, 1, 1, 1,
+	0, 21, 22, 22, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 2, 2, 7, 7, 7, 7,
 	7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
 	7, 7, 7, 7, 7, 7, 16, 16, 16, 10,
 	10, 11, 11, 11, 12, 12, 12, 13, 13, 14,
-	14, 9, 9, 8, 8, 8, 8, 21, 5, 3,
-	3, 3, 3, 4, 17, 17, 19, 19, 19, 19,
-	19, 19, 19, 19, 19, 19, 18, 18, 15, 20,
-	20, 6,
+	14, 9, 9, 8, 8, 8, 8, 5, 3, 3,
+	3, 3, 4, 17, 17, 19, 19, 19, 19, 19,
+	19, 19, 19, 19, 19, 18, 18, 15, 20, 20,
+	6,
 }
 
 var gritsR2 = [...]int8{
@@ -289,14 +291,14 @@ var gritsR2 = [...]int8{
 	6, 8, 6, 8, 4, 2, 3, 10, 8, 4,
 	5, 6, 4, 3, 6, 4, 0, 6, 8, 1,
 	3, 0, 1, 3, 0, 1, 3, 0, 2, 1,
-	3, 1, 3, 1, 2, 1, 2, 1, 2, 9,
-	11, 10, 12, 4, 1, 2, 1, 1, 1, 4,
-	4, 3, 3, 3, 4, 4, 3, 5, 1, 1,
-	1, 4,
+	3, 1, 3, 1, 2, 1, 2, 2, 9, 11,
+	10, 12, 4, 1, 2, 1, 1, 1, 4, 4,
+	3, 3, 3, 4, 4, 3, 5, 1, 1, 1,
+	4,
 }
 
 var gritsChk = [...]int16{
-	-1000, -22, -23, -7, -1, 21, 18, -8, 23, 4,
+	-1000, -21, -22, -7, -1, 21, 18, -8, 23, 4,
 	24, 43, 25, 26, 32, 14, 60, 45, -2, -3,
 	-4, -5, -6, 44, -20, 42, 38, 37, 55, 56,
 	46, 47, -8, 4, -8, 10, 5, -8, 12, 14,
@@ -314,39 +316,39 @@ var gritsChk = [...]int16{
 	-18, 15, -10, 19, 39, 59, 12, -10, 15, 13,
 	-13, 12, 13, -8, 5, 19, -7, -7, 19, -7,
 	4, -8, -7, -7, -19, -19, 52, 12, 52, -7,
-	-21, 4, -17, 59, 12, -14, 17, -17, -12, 19,
-	22, 33, 11, 18, 19, 11, 11, -19, 9, 59,
-	-21, -17, 59, -13, -8, -8, -7, -8, 6, -7,
-	-7, 13, -7, -21, 9, 59, -21, 17, 11, 11,
-	19, -7, -18, 9, -7, -21, 9, 59, -7, -7,
-	6, -7, 9, -7, -21, -7, -7, 9, -7,
+	61, -17, 59, 12, -14, 17, -17, -12, 19, 22,
+	33, 11, 18, 19, 11, 11, -19, 9, 59, 61,
+	-17, 59, -13, -8, -8, -7, -8, 6, -7, -7,
+	13, -7, 61, 9, 59, 61, 17, 11, 11, 19,
+	-7, -18, 9, -7, 61, 9, 59, -7, -7, 6,
+	-7, 9, -7, 61, -7, -7, 9, -7,
 }
 
 var gritsDef = [...]int8{
 	0, -2, 1, 2, 3, 0, 0, 0, 0, 55,
 	0, 0, 0, 0, 0, 0, 0, 0, 4, 6,
 	8, 10, 12, 53, 0, 0, 0, 0, 0, 0,
-	79, 80, 0, 55, 0, 0, 0, 0, 0, 41,
+	78, 79, 0, 55, 0, 0, 0, 0, 0, 41,
 	25, 0, 0, 0, 0, 0, 0, 0, 5, 7,
-	9, 11, 13, 54, 56, 0, 0, 0, 58, 49,
+	9, 11, 13, 54, 56, 0, 0, 0, 57, 49,
 	51, 0, 0, 0, 0, 0, 0, 0, 0, 36,
-	0, 64, 0, -2, 67, 68, 0, 0, 0, 0,
+	0, 63, 0, -2, 66, 67, 0, 0, 0, 0,
 	42, 26, 0, 0, 0, 33, 0, 0, 0, 39,
 	44, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 65, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 64, 0,
 	0, 0, 0, 0, 0, 24, 0, 29, 0, 32,
-	0, 35, 0, 0, 0, 45, 47, 63, 50, 52,
-	81, 0, 0, 0, 0, 0, 0, 0, 19, 0,
-	0, 0, 0, 71, 72, 0, 78, 0, 0, 0,
-	0, 73, 43, 30, 0, 0, 0, 40, 0, 0,
+	0, 35, 0, 0, 0, 45, 47, 62, 50, 52,
+	80, 0, 0, 0, 0, 0, 0, 0, 19, 0,
+	0, 0, 0, 70, 71, 0, 77, 0, 0, 0,
+	0, 72, 43, 30, 0, 0, 0, 40, 0, 0,
 	0, 0, 44, 0, 0, 18, 20, 22, 0, 31,
-	0, 0, 0, 0, 74, 75, 69, 0, 70, 34,
-	0, 57, 0, 0, 0, 46, 0, 47, 48, 16,
-	0, 0, 0, 0, 0, 0, 0, 76, 0, 0,
-	0, 0, 0, 0, 0, 0, 28, 0, 0, 21,
-	23, 0, 14, 0, 0, 0, 0, 0, 0, 0,
-	0, 37, 77, 0, 59, 0, 0, 0, 17, 27,
-	0, 15, 0, 61, 0, 38, 60, 0, 62,
+	0, 0, 0, 0, 73, 74, 68, 0, 69, 34,
+	0, 0, 0, 0, 46, 0, 47, 48, 16, 0,
+	0, 0, 0, 0, 0, 0, 75, 0, 0, 0,
+	0, 0, 0, 0, 0, 28, 0, 0, 21, 23,
+	0, 14, 0, 0, 0, 0, 0, 0, 0, 0,
+	37, 76, 0, 58, 0, 0, 0, 17, 27, 0,
+	15, 0, 60, 0, 38, 59, 0, 61,
 }
 
 var gritsTok1 = [...]int8{
@@ -706,374 +708,362 @@ gritsdefault:
 
 	case 1:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:63
+//line parser/parser.y:60
 		{
 		}
 	case 2:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:69
+//line parser/parser.y:66
 		{
 			gritslex.(*lexer).processesOrFunctionsRes = append(gritslex.(*lexer).processesOrFunctionsRes, unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[1].form, Providers: []process.Name{{Ident: "root", IsSelf: false}}}, position: gritsVAL.currPosition})
 		}
 	case 3:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:73
+//line parser/parser.y:70
 		{
 			gritslex.(*lexer).processesOrFunctionsRes = gritsDollar[1].statements
 		}
 	case 4:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:79
+//line parser/parser.y:76
 		{
 			gritsVAL.statements = []unexpandedProcessOrFunction{gritsDollar[1].common_type}
 		}
 	case 5:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:80
+//line parser/parser.y:77
 		{
 			gritsVAL.statements = append([]unexpandedProcessOrFunction{gritsDollar[1].common_type}, gritsDollar[2].statements...)
 		}
 	case 6:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:81
+//line parser/parser.y:78
 		{
 			gritsVAL.statements = []unexpandedProcessOrFunction{gritsDollar[1].common_type}
 		}
 	case 7:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:82
+//line parser/parser.y:79
 		{
 			gritsVAL.statements = append([]unexpandedProcessOrFunction{gritsDollar[1].common_type}, gritsDollar[2].statements...)
 		}
 	case 8:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:83
+//line parser/parser.y:80
 		{
 			gritsVAL.statements = []unexpandedProcessOrFunction{gritsDollar[1].common_type}
 		}
 	case 9:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:84
+//line parser/parser.y:81
 		{
 			gritsVAL.statements = append([]unexpandedProcessOrFunction{gritsDollar[1].common_type}, gritsDollar[2].statements...)
 		}
 	case 10:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:85
+//line parser/parser.y:82
 		{
 			gritsVAL.statements = []unexpandedProcessOrFunction{gritsDollar[1].common_type}
 		}
 	case 11:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:86
+//line parser/parser.y:83
 		{
 			gritsVAL.statements = append([]unexpandedProcessOrFunction{gritsDollar[1].common_type}, gritsDollar[2].statements...)
 		}
 	case 12:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:87
+//line parser/parser.y:84
 		{
 			gritsVAL.statements = []unexpandedProcessOrFunction{gritsDollar[1].common_type}
 		}
 	case 13:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:88
+//line parser/parser.y:85
 		{
 			gritsVAL.statements = append([]unexpandedProcessOrFunction{gritsDollar[1].common_type}, gritsDollar[2].statements...)
 		}
 	case 14:
 		gritsDollar = gritsS[gritspt-8 : gritspt+1]
-//line parser/parser.y:94
+//line parser/parser.y:91
 		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[8].form, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[6].faultTolerancePromise}, position: gritsVAL.currPosition}
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[8].form, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[6].integer}, position: gritsVAL.currPosition}
 		}
 	case 15:
 		gritsDollar = gritsS[gritspt-10 : gritspt+1]
-//line parser/parser.y:96
+//line parser/parser.y:93
 		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[10].form, Type: gritsDollar[6].sessionType, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[8].faultTolerancePromise}, position: gritsVAL.currPosition}
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[10].form, Type: gritsDollar[6].sessionType, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[8].integer}, position: gritsVAL.currPosition}
 		}
 	case 16:
 		gritsDollar = gritsS[gritspt-7 : gritspt+1]
-//line parser/parser.y:102
+//line parser/parser.y:99
 		{
 			gritsVAL.form = process.NewSend(gritsDollar[2].name, gritsDollar[4].name, gritsDollar[6].name)
 		}
 	case 17:
 		gritsDollar = gritsS[gritspt-10 : gritspt+1]
-//line parser/parser.y:106
+//line parser/parser.y:103
 		{
 			gritsVAL.form = process.NewReceive(gritsDollar[2].name, gritsDollar[4].name, gritsDollar[8].name, gritsDollar[10].form)
 		}
 	case 18:
 		gritsDollar = gritsS[gritspt-6 : gritspt+1]
-//line parser/parser.y:108
+//line parser/parser.y:105
 		{
 			gritsVAL.form = process.NewSelect(gritsDollar[1].name, process.Label{L: gritsDollar[3].strval}, gritsDollar[5].name)
 		}
 	case 19:
 		gritsDollar = gritsS[gritspt-5 : gritspt+1]
-//line parser/parser.y:110
+//line parser/parser.y:107
 		{
 			gritsVAL.form = process.NewCase(gritsDollar[2].name, gritsDollar[4].branches)
 		}
 	case 20:
 		gritsDollar = gritsS[gritspt-6 : gritspt+1]
-//line parser/parser.y:112
+//line parser/parser.y:109
 		{
 			gritsVAL.form = process.NewNew(gritsDollar[1].name, gritsDollar[4].form, gritsDollar[6].form)
 		}
 	case 21:
 		gritsDollar = gritsS[gritspt-8 : gritspt+1]
-//line parser/parser.y:114
+//line parser/parser.y:111
 		{
 			gritsVAL.form = process.NewNew(process.Name{Ident: gritsDollar[1].strval, Type: gritsDollar[3].sessionType, IsSelf: false}, gritsDollar[6].form, gritsDollar[8].form)
 		}
 	case 22:
 		gritsDollar = gritsS[gritspt-6 : gritspt+1]
-//line parser/parser.y:116
+//line parser/parser.y:113
 		{
 			gritsVAL.form = process.NewSpawn(gritsDollar[1].name, gritsDollar[4].form, gritsDollar[6].form)
 		}
 	case 23:
 		gritsDollar = gritsS[gritspt-8 : gritspt+1]
-//line parser/parser.y:118
+//line parser/parser.y:115
 		{
 			gritsVAL.form = process.NewSpawn(process.Name{Ident: gritsDollar[1].strval, Type: gritsDollar[3].sessionType, IsSelf: false}, gritsDollar[6].form, gritsDollar[8].form)
 		}
 	case 24:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:120
+//line parser/parser.y:117
 		{
 			gritsVAL.form = process.NewCall(gritsDollar[1].strval, gritsDollar[3].names)
 		}
 	case 25:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:122
+//line parser/parser.y:119
 		{
 			gritsVAL.form = process.NewClose(gritsDollar[2].name)
 		}
 	case 26:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:124
+//line parser/parser.y:121
 		{
 			gritsVAL.form = process.NewForward(gritsDollar[2].name, gritsDollar[3].name)
 		}
 	case 27:
 		gritsDollar = gritsS[gritspt-10 : gritspt+1]
-//line parser/parser.y:126
+//line parser/parser.y:123
 		{
 			gritsVAL.form = process.NewSplit(gritsDollar[2].name, gritsDollar[4].name, gritsDollar[8].name, gritsDollar[10].form)
 		}
 	case 28:
 		gritsDollar = gritsS[gritspt-8 : gritspt+1]
-//line parser/parser.y:128
+//line parser/parser.y:125
 		{
 			gritsVAL.form = process.NewSync(gritsDollar[1].name, gritsDollar[5].names, gritsDollar[8].form)
 		}
 	case 29:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:130
+//line parser/parser.y:127
 		{
 			gritsVAL.form = process.NewWait(gritsDollar[2].name, gritsDollar[4].form)
 		}
 	case 30:
 		gritsDollar = gritsS[gritspt-5 : gritspt+1]
-//line parser/parser.y:132
+//line parser/parser.y:129
 		{
 			gritsVAL.form = process.NewCast(gritsDollar[2].name, gritsDollar[4].name)
 		}
 	case 31:
 		gritsDollar = gritsS[gritspt-6 : gritspt+1]
-//line parser/parser.y:134
+//line parser/parser.y:131
 		{
 			gritsVAL.form = process.NewShift(gritsDollar[1].name, gritsDollar[4].name, gritsDollar[6].form)
 		}
 	case 32:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:136
+//line parser/parser.y:133
 		{
 			gritsVAL.form = process.NewDrop(gritsDollar[2].name, gritsDollar[4].form)
 		}
 	case 33:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:138
+//line parser/parser.y:135
 		{
 			gritsVAL.form = gritsDollar[2].form
 		}
 	case 34:
 		gritsDollar = gritsS[gritspt-6 : gritspt+1]
-//line parser/parser.y:140
+//line parser/parser.y:137
 		{
 			gritsVAL.form = process.NewLet(gritsDollar[2].name, gritsDollar[4].integer, gritsDollar[6].form)
 		}
 	case 35:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:142
+//line parser/parser.y:139
 		{
 			gritsVAL.form = process.NewPrint(process.Label{L: gritsDollar[2].strval}, gritsDollar[4].form)
 		}
 	case 36:
 		gritsDollar = gritsS[gritspt-0 : gritspt+1]
-//line parser/parser.y:146
+//line parser/parser.y:143
 		{
 			gritsVAL.branches = nil
 		}
 	case 37:
 		gritsDollar = gritsS[gritspt-6 : gritspt+1]
-//line parser/parser.y:147
+//line parser/parser.y:144
 		{
 			gritsVAL.branches = []*process.BranchForm{process.NewBranch(process.Label{L: gritsDollar[1].strval}, gritsDollar[3].name, gritsDollar[6].form)}
 		}
 	case 38:
 		gritsDollar = gritsS[gritspt-8 : gritspt+1]
-//line parser/parser.y:148
+//line parser/parser.y:145
 		{
 			gritsVAL.branches = append(gritsDollar[1].branches, process.NewBranch(process.Label{L: gritsDollar[3].strval}, gritsDollar[5].name, gritsDollar[8].form))
 		}
 	case 39:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:150
+//line parser/parser.y:147
 		{
 			gritsVAL.names = []process.Name{gritsDollar[1].name}
 		}
 	case 40:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:151
+//line parser/parser.y:148
 		{
 			gritsVAL.names = append([]process.Name{gritsDollar[1].name}, gritsDollar[3].names...)
 		}
 	case 41:
 		gritsDollar = gritsS[gritspt-0 : gritspt+1]
-//line parser/parser.y:153
+//line parser/parser.y:150
 		{
 			gritsVAL.names = nil
 		}
 	case 42:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:154
+//line parser/parser.y:151
 		{
 			gritsVAL.names = []process.Name{gritsDollar[1].name}
 		}
 	case 43:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:155
+//line parser/parser.y:152
 		{
 			gritsVAL.names = append([]process.Name{gritsDollar[1].name}, gritsDollar[3].names...)
 		}
 	case 44:
 		gritsDollar = gritsS[gritspt-0 : gritspt+1]
-//line parser/parser.y:158
+//line parser/parser.y:155
 		{
 			gritsVAL.names = nil
 		}
 	case 45:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:159
+//line parser/parser.y:156
 		{
 			gritsVAL.names = []process.Name{gritsDollar[1].name}
 		}
 	case 46:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:160
+//line parser/parser.y:157
 		{
 			gritsVAL.names = append([]process.Name{gritsDollar[1].name}, gritsDollar[3].names...)
 		}
 	case 47:
 		gritsDollar = gritsS[gritspt-0 : gritspt+1]
-//line parser/parser.y:163
+//line parser/parser.y:160
 		{
 			gritsVAL.names = nil
 		}
 	case 48:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:164
+//line parser/parser.y:161
 		{
 			gritsVAL.names = gritsDollar[2].names
 		}
 	case 49:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:168
+//line parser/parser.y:165
 		{
 			gritsVAL.names = []process.Name{gritsDollar[1].name}
 		}
 	case 50:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:169
+//line parser/parser.y:166
 		{
 			gritsVAL.names = append([]process.Name{gritsDollar[1].name}, gritsDollar[3].names...)
 		}
 	case 51:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:174
+//line parser/parser.y:171
 		{
 			gritsVAL.name = process.Name{Ident: gritsDollar[1].strval, IsSelf: false}
 		}
 	case 52:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:176
+//line parser/parser.y:173
 		{
 			gritsVAL.name = process.Name{Ident: gritsDollar[1].strval, Type: gritsDollar[3].sessionType, IsSelf: false}
 		}
 	case 53:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:178
+//line parser/parser.y:175
 		{
 			gritsVAL.name = process.Name{IsSelf: true}
 		}
 	case 54:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:180
+//line parser/parser.y:177
 		{
 			pol := gritsDollar[1].polarity
 			gritsVAL.name = process.Name{IsSelf: true, ExplicitPolarity: &pol}
 		}
 	case 55:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:182
+//line parser/parser.y:179
 		{
 			gritsVAL.name = process.Name{Ident: gritsDollar[1].strval, IsSelf: false}
 		}
 	case 56:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:184
+//line parser/parser.y:181
 		{
 			pol := gritsDollar[1].polarity
 			gritsVAL.name = process.Name{Ident: gritsDollar[2].strval, IsSelf: false, ExplicitPolarity: &pol}
 		}
 	case 57:
-		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:187
-		{
-			ftPromise, err := strconv.ParseUint(gritsDollar[1].strval, 10, 64)
-
-			if err != nil {
-				gritslex.Error("fault tolerance promise must be a non-negative integer")
-			}
-
-			gritsVAL.faultTolerancePromise = ftPromise
-		}
-	case 58:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:197
+//line parser/parser.y:185
 		{
 			gritsVAL.common_type = unexpandedProcessOrFunction{kind: ASSUMING_DEF, assumedFreeNameTypes: gritsDollar[2].names, position: gritsVAL.currPosition}
 		}
-	case 59:
+	case 58:
 		gritsDollar = gritsS[gritspt-9 : gritspt+1]
-//line parser/parser.y:202
+//line parser/parser.y:190
 		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[9].form, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[7].faultTolerancePromise}, position: gritsVAL.currPosition}
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[9].form, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[7].integer}, position: gritsVAL.currPosition}
+		}
+	case 59:
+		gritsDollar = gritsS[gritspt-11 : gritspt+1]
+//line parser/parser.y:192
+		{
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[11].form, Type: gritsDollar[7].sessionType, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[9].integer}, position: gritsVAL.currPosition}
 		}
 	case 60:
-		gritsDollar = gritsS[gritspt-11 : gritspt+1]
-//line parser/parser.y:204
-		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[11].form, Type: gritsDollar[7].sessionType, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[9].faultTolerancePromise}, position: gritsVAL.currPosition}
-		}
-	case 61:
 		gritsDollar = gritsS[gritspt-10 : gritspt+1]
-//line parser/parser.y:207
+//line parser/parser.y:195
 		{
 			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{
 				FunctionName:          gritsDollar[2].strval,
@@ -1081,13 +1071,13 @@ gritsdefault:
 				Body:                  gritsDollar[10].form,
 				UsesExplicitProvider:  true,
 				ExplicitProvider:      process.Name{Ident: gritsDollar[4].strval, IsSelf: true},
-				FaultTolerancePromise: gritsDollar[8].faultTolerancePromise,
+				FaultTolerancePromise: gritsDollar[8].integer,
 				// Type: $6,
 			}, position: gritsVAL.currPosition}
 		}
-	case 62:
+	case 61:
 		gritsDollar = gritsS[gritspt-12 : gritspt+1]
-//line parser/parser.y:219
+//line parser/parser.y:207
 		{
 			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{
 				FunctionName:          gritsDollar[2].strval,
@@ -1096,127 +1086,127 @@ gritsdefault:
 				UsesExplicitProvider:  true,
 				ExplicitProvider:      process.Name{Ident: gritsDollar[4].strval, IsSelf: true},
 				Type:                  gritsDollar[6].sessionType,
-				FaultTolerancePromise: gritsDollar[10].faultTolerancePromise}, position: gritsVAL.currPosition}
+				FaultTolerancePromise: gritsDollar[10].integer}, position: gritsVAL.currPosition}
 		}
-	case 63:
+	case 62:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:230
+//line parser/parser.y:218
 		{
 			gritsVAL.common_type = unexpandedProcessOrFunction{
 				kind:         TYPE_DEF,
 				session_type: types.SessionTypeDefinition{Name: gritsDollar[2].strval, SessionType: gritsDollar[4].sessionType},
 				position:     gritsVAL.currPosition}
 		}
-	case 64:
+	case 63:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:237
+//line parser/parser.y:225
 		{
 			gritsVAL.sessionType = types.ConvertSessionTypeInitialToSessionType(gritsDollar[1].sessionTypeInitial)
 		}
-	case 65:
+	case 64:
 		gritsDollar = gritsS[gritspt-2 : gritspt+1]
-//line parser/parser.y:239
+//line parser/parser.y:227
 		{
 			mode := types.StringToMode(gritsDollar[1].strval)
 			gritsVAL.sessionType = types.ConvertSessionTypeInitialToSessionType(types.NewExplicitModeTypeInitial(mode, gritsDollar[2].sessionTypeInitial))
 		}
-	case 66:
+	case 65:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:245
+//line parser/parser.y:233
 		{
 			gritsVAL.sessionTypeInitial = types.NewLabelTypeInitial(gritsDollar[1].strval)
 		}
-	case 67:
+	case 66:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:247
+//line parser/parser.y:235
 		{
 			gritsVAL.sessionTypeInitial = types.NewUnitTypeInitial()
 		}
-	case 68:
+	case 67:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:249
+//line parser/parser.y:237
 		{
 			gritsVAL.sessionTypeInitial = types.NewIntTypeInitial()
 		}
-	case 69:
+	case 68:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:251
+//line parser/parser.y:239
 		{
 			gritsVAL.sessionTypeInitial = types.NewSelectLabelTypeInitial(gritsDollar[3].sessionTypeAltInitial)
 		}
-	case 70:
+	case 69:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:253
+//line parser/parser.y:241
 		{
 			gritsVAL.sessionTypeInitial = types.NewBranchCaseTypeInitial(gritsDollar[3].sessionTypeAltInitial)
 		}
-	case 71:
+	case 70:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:255
+//line parser/parser.y:243
 		{
 			gritsVAL.sessionTypeInitial = types.NewSendTypeInitial(gritsDollar[1].sessionTypeInitial, gritsDollar[3].sessionTypeInitial)
 		}
-	case 72:
+	case 71:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:257
+//line parser/parser.y:245
 		{
 			gritsVAL.sessionTypeInitial = types.NewReceiveTypeInitial(gritsDollar[1].sessionTypeInitial, gritsDollar[3].sessionTypeInitial)
 		}
-	case 73:
+	case 72:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:259
+//line parser/parser.y:247
 		{
 			gritsVAL.sessionTypeInitial = gritsDollar[2].sessionTypeInitial
 		}
-	case 74:
+	case 73:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:261
+//line parser/parser.y:249
 		{
 			modeFrom := types.StringToMode(gritsDollar[1].strval)
 			modeTo := types.StringToMode(gritsDollar[3].strval)
 			gritsVAL.sessionTypeInitial = types.NewUpTypeInitial(modeFrom, modeTo, gritsDollar[4].sessionTypeInitial)
 		}
-	case 75:
+	case 74:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:265
+//line parser/parser.y:253
 		{
 			modeFrom := types.StringToMode(gritsDollar[1].strval)
 			modeTo := types.StringToMode(gritsDollar[3].strval)
 			gritsVAL.sessionTypeInitial = types.NewDownTypeInitial(modeFrom, modeTo, gritsDollar[4].sessionTypeInitial)
 		}
-	case 76:
+	case 75:
 		gritsDollar = gritsS[gritspt-3 : gritspt+1]
-//line parser/parser.y:271
+//line parser/parser.y:259
 		{
 			gritsVAL.sessionTypeAltInitial = []types.OptionInitial{*types.NewOptionInitial(gritsDollar[1].strval, gritsDollar[3].sessionTypeInitial)}
 		}
-	case 77:
+	case 76:
 		gritsDollar = gritsS[gritspt-5 : gritspt+1]
-//line parser/parser.y:273
+//line parser/parser.y:261
 		{
 			gritsVAL.sessionTypeAltInitial = append([]types.OptionInitial{*types.NewOptionInitial(gritsDollar[1].strval, gritsDollar[3].sessionTypeInitial)}, gritsDollar[5].sessionTypeAltInitial...)
 		}
-	case 78:
+	case 77:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:275
+//line parser/parser.y:263
 		{
 			gritsVAL.strval = gritsDollar[1].strval
 		}
-	case 79:
+	case 78:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:277
+//line parser/parser.y:265
 		{
 			gritsVAL.polarity = types.POSITIVE
 		}
-	case 80:
+	case 79:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
-//line parser/parser.y:278
+//line parser/parser.y:266
 		{
 			gritsVAL.polarity = types.NEGATIVE
 		}
-	case 81:
+	case 80:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
-//line parser/parser.y:282
+//line parser/parser.y:270
 		{
 			gritsVAL.common_type = unexpandedProcessOrFunction{
 				kind:     EXEC_DEF,

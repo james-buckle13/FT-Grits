@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"grits/position"
 	"io"
+	"strconv"
 )
 
 // Generated from goyacc
@@ -32,6 +33,12 @@ func (l *lexer) Lex(yylval *gritsSymType) int {
 
 	yylval.currPosition = position.Position{StartLine: len(startPos.Lines) + 1, StartPos: startPos.Char}
 	yylval.strval = strval
+
+	if token == INT {
+		if i, err := strconv.Atoi(strval); err == nil {
+			yylval.integer = i
+		}
+	}
 
 	return int(token)
 }
