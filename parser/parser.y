@@ -27,9 +27,10 @@ import (
 	sessionTypeAltInitial []types.OptionInitial
 	polarity 		      types.Polarity
 	faultTolerancePromise uint64
+	integer 			  int
 }
 
-%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE DEF IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC SPAWN SYNC AT
+%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE DEF IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC SPAWN SYNC AT LET IN INT INT_TYPE
 %type <strval> LABEL
 %type <statements> statements 
 %type <common_type> process_def
@@ -52,6 +53,7 @@ import (
 %type <sessionTypeInitial> session_type_init
 %type <polarity> polarity
 %type <faultTolerancePromise> fault_tolerance_promise
+%type <integer> INT
 
 %left SEQUENCE RANGLE
 %right TIMES LOLLI UP_ARROW DOWN_ARROW
@@ -134,6 +136,8 @@ expression : /* Send */ SEND name LANGLE name COMMA name RANGLE
 					{ $$ = process.NewDrop($2, $4) }
 		   | /* Brackets */ LPAREN expression RPAREN
 					{ $$ = $2 }
+		   | /* Let */ LET name EQUALS INT IN expression
+		   			{ $$ = process.NewLet($2, $4, $6)}
 		   | /* Print - for output */ PRINT LABEL SEQUENCE expression
 		   			{ $$ = process.NewPrint(process.Label{L: $2}, $4) };
 /* remaining expressions - used for shared processes
@@ -241,6 +245,8 @@ session_type_init :
 				{ $$ = types.NewLabelTypeInitial($1) }
 		   | /* unit */ UNIT
 		   		{ $$ = types.NewUnitTypeInitial() }
+		   | /* int */ INT_TYPE
+		   		{ $$ = types.NewIntTypeInitial() }	
 		   | /* select +{ } */ PLUS LCBRACK session_type_options_init RCBRACK  
 		   		{ $$ = types.NewSelectLabelTypeInitial($3) }
 		   | /* branch &{ } */ AMPERSAND LCBRACK session_type_options_init RCBRACK  

@@ -621,6 +621,10 @@ func (f *ForwardForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	}
 }
 
+func (f *LetForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	// todo JAMES: populate transition np function for Let
+}
+
 func (f *SyncForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	// todo JAMES: populate transition np function for Sync
 }

@@ -778,6 +778,10 @@ func (f *ForwardForm) Transition(process *Process, re *RuntimeEnvironment) {
 	}
 }
 
+func (f *LetForm) Transition(process *Process, re *RuntimeEnvironment) {
+	// todo JAMES: populate transition function for Let
+}
+
 func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
 	// todo JAMES: populate transition function for Sync
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"grits/types"
 	"reflect"
+	"strconv"
 )
 
 // All process' bodies have to follow the Form interface
@@ -491,6 +492,59 @@ func (p *SpawnForm) FreeNames() []Name {
 }
 
 func (p *SpawnForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	return p.continuation_e.Polarity(fromTypes, globalEnvironment)
+}
+
+// let bound_var = val in continuation_e
+type LetForm struct {
+	bound_var      Name
+	val            int
+	continuation_e Form
+}
+
+func NewLet(bound_var Name, val int, continuation_e Form) *LetForm {
+	return &LetForm{
+		bound_var:      bound_var,
+		val:            val,
+		continuation_e: continuation_e,
+	}
+}
+
+func (p *LetForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("let ")
+	buf.WriteString(p.bound_var.String())
+	buf.WriteString(" = ")
+	buf.WriteString(strconv.FormatInt(int64(p.val), 10))
+	buf.WriteString(" in ")
+	buf.WriteString(p.continuation_e.String())
+	return buf.String()
+}
+
+func (p *LetForm) StringShort() string {
+	var buf bytes.Buffer
+	buf.WriteString("let ")
+	buf.WriteString(p.bound_var.String())
+	buf.WriteString(" = ")
+	buf.WriteString(strconv.FormatInt(int64(p.val), 10))
+	buf.WriteString(" in ...")
+	return buf.String()
+}
+
+func (p *LetForm) Substitute(old, new Name) {
+	if !p.bound_var.Equal(old) {
+		p.continuation_e.Substitute(old, new)
+	}
+}
+
+func (p *LetForm) FreeNames() []Name {
+	var fn []Name
+	continuation_e_excluding_bound_names := removeBoundName(p.continuation_e.FreeNames(), p.bound_var)
+	fn = mergeTwoNamesList(fn, continuation_e_excluding_bound_names)
+	return fn
+}
+
+func (p *LetForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
 	return p.continuation_e.Polarity(fromTypes, globalEnvironment)
 }
 
@@ -1123,6 +1177,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.channel_one.Equal(f2.channel_one) && f1.channel_two.Equal(f2.channel_two) && f1.from_c.Equal(f2.from_c) && EqualForm(f1.continuation_e, f2.continuation_e)
 		}
+	case *LetForm:
+		f1, ok1 := form1.(*LetForm)
+		f2, ok2 := form2.(*LetForm)
+
+		if ok1 && ok2 {
+			return f1.bound_var.Equal(f2.bound_var) && f1.val == f2.val && EqualForm(f1.continuation_e, f2.continuation_e)
+		}
 	case *CallForm:
 		f1, ok1 := form1.(*CallForm)
 		f2, ok2 := form2.(*CallForm)
@@ -1261,6 +1322,12 @@ func CopyForm(orig Form) Form {
 			cont := CopyForm(p.continuation_e)
 			return NewSplit(*p.channel_one.Copy(), *p.channel_two.Copy(), *p.from_c.Copy(), cont)
 		}
+	case *LetForm:
+		p, ok := orig.(*LetForm)
+		if ok {
+			cont := CopyForm(p.continuation_e)
+			return NewLet(*p.bound_var.Copy(), p.val, cont)
+		}
 	case *CallForm:
 		p, ok := orig.(*CallForm)
 		if ok {
@@ -1344,6 +1411,7 @@ func FormHasContinuation(form Form) bool {
 		// -> DropForm:
 		// -> SyncForm:
 		// -> PrintForm:
+		// -> LetForm
 		return true
 	}
 }

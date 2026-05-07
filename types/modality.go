@@ -477,6 +477,10 @@ func (q *UnitType) inferModality(labelledTypesEnv LabelledTypesEnv, usedLabels m
 	return q.Mode
 }
 
+func (q *IntType) inferModality(labelledTypesEnv LabelledTypesEnv, usedLabels map[string]bool) Modality {
+	return q.Mode
+}
+
 func (q *SendType) inferModality(labelledTypesEnv LabelledTypesEnv, usedLabels map[string]bool) Modality {
 	_, unset := q.Mode.(*UnsetMode)
 	if !unset {
@@ -583,6 +587,17 @@ func (q *LabelType) assignUnsetModalities(labelledTypesEnv LabelledTypesEnv, cur
 }
 
 func (q *UnitType) assignUnsetModalities(labelledTypesEnv LabelledTypesEnv, currentMode Modality) {
+	_, unset := q.Mode.(*UnsetMode)
+	if !unset {
+		// If the type already has a modality, then do not change it
+		// q.Mode ≠ Unset
+		return
+	}
+
+	q.Mode = currentMode
+}
+
+func (q *IntType) assignUnsetModalities(labelledTypesEnv LabelledTypesEnv, currentMode Modality) {
 	_, unset := q.Mode.(*UnsetMode)
 	if !unset {
 		// If the type already has a modality, then do not change it
@@ -748,6 +763,25 @@ func (q *UnitType) checkTypeModalities(labelledTypesEnv LabelledTypesEnv, curren
 
 	if !q.Mode.Equals(currentMode) {
 		return fmt.Errorf("mode of unit type '%s' (%s) does not match the expected mode '%s'", q.String(), q.Mode.String(), currentMode.String())
+	}
+
+	return nil
+}
+
+func (q *IntType) checkTypeModalities(labelledTypesEnv LabelledTypesEnv, currentMode Modality) error {
+	_, unset := q.Mode.(*UnsetMode)
+	invalidMode, invalid := q.Mode.(*InvalidMode)
+
+	if unset || q.Mode == nil {
+		return fmt.Errorf("type '%s' has no modality defined", q.String())
+	}
+
+	if invalid {
+		return fmt.Errorf("type '%s' has an unknown modality '%s'", q.String(), invalidMode.mode)
+	}
+
+	if !q.Mode.Equals(currentMode) {
+		return fmt.Errorf("mode of int type '%s' (%s) does not match the expected mode '%s'", q.String(), q.Mode.String(), currentMode.String())
 	}
 
 	return nil

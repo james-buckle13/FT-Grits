@@ -99,6 +99,9 @@ func (q *LabelType) checkTypeLabels(labelledTypesEnv LabelledTypesEnv) error {
 func (q *UnitType) checkTypeLabels(labelledTypesEnv LabelledTypesEnv) error {
 	return nil
 }
+func (q *IntType) checkTypeLabels(labelledTypesEnv LabelledTypesEnv) error {
+	return nil
+}
 func (q *SendType) checkTypeLabels(labelledTypesEnv LabelledTypesEnv) error {
 	err := q.Left.checkTypeLabels(labelledTypesEnv)
 
@@ -206,6 +209,10 @@ func (q *LabelType) isContractive(labelledTypesEnv LabelledTypesEnv, snapshots m
 }
 
 func (q *UnitType) isContractive(labelledTypesEnv LabelledTypesEnv, snapshots map[string]bool) bool {
+	return true
+}
+
+func (q *IntType) isContractive(labelledTypesEnv LabelledTypesEnv, snapshots map[string]bool) bool {
 	return true
 }
 

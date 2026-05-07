@@ -1490,6 +1490,12 @@ func (p *CallForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	return nil
 }
 
+// Let: let bound_var = val in continuation_e
+func (p *LetForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+	globalEnv.log(LOGRULEDETAILS, "rule LET")
+	return nil
+}
+
 // Sync: bridge_c <- sync <channels_to_be_synced>; continuation_e
 func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule SYNC")

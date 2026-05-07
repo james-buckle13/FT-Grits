@@ -107,6 +107,42 @@ func (q *UnitType) Modality() Modality {
 	return q.Mode
 }
 
+// int: int
+type IntType struct {
+	Mode Modality
+}
+
+func NewIntType(mode Modality) *IntType {
+	return &IntType{
+		Mode: mode,
+	}
+}
+
+func (q *IntType) String() string {
+	return "int"
+}
+
+func (q *IntType) StringWithModality() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("[")
+	buffer.WriteString(q.Mode.String())
+	buffer.WriteString("]int")
+
+	return buffer.String()
+}
+
+func (q *IntType) StringWithOuterModality() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("int [")
+	buffer.WriteString(q.Mode.String())
+	buffer.WriteString("]")
+	return buffer.String()
+}
+
+func (q *IntType) Modality() Modality {
+	return q.Mode
+}
+
 // Send: A * B
 type SendType struct {
 	Left  SessionType
@@ -844,6 +880,16 @@ func NewUnitTypeInitial() *UnitTypeInitial {
 
 func (q *UnitTypeInitial) toSessionType(mode Modality) SessionType {
 	return NewUnitType(mode)
+}
+
+type IntTypeInitial struct{}
+
+func NewIntTypeInitial() *IntTypeInitial {
+	return &IntTypeInitial{}
+}
+
+func (q *IntTypeInitial) toSessionType(mode Modality) SessionType {
+	return NewIntType(mode)
 }
 
 // Send: A * B

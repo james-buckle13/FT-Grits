@@ -375,6 +375,8 @@ const (
 	SPLIT
 	CALL // (maybe can happen when interactive or not)
 
+	LET
+
 	// When a process is 'non-interactive', either the FWD or DUP rules take place
 	// Special rules for control messages
 	// FWD // uses Channel1 of the ControlMessage struct

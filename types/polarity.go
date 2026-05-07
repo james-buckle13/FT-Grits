@@ -27,6 +27,10 @@ func (q *UnitType) Polarity() Polarity {
 	return POSITIVE
 }
 
+func (q *IntType) Polarity() Polarity {
+	return POSITIVE
+}
+
 func (q *SendType) Polarity() Polarity {
 	return POSITIVE
 }
