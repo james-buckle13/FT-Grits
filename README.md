@@ -86,7 +86,7 @@ The following program defines a type `nat` (representing natural number), a func
 ```text
 type nat = +{zero : 1, succ : nat}
 
-let double(x : nat) : nat =
+def double(x : nat) : nat =
     case x (
           zero<x'> => self.zero<x'>
         | succ<x'> => h <- new double(x');
@@ -113,8 +113,8 @@ The full grammar accepted by our compiler is as follows:
 <prog> ::= <statement>*
 
 <statement> ::= type <label> = <type>                           // labelled session type       
-              | let <label> ( [<param>] ) : <type> = <term>     // function declaration
-              | let <label> '[' <param> ']' = <term>            // function declaration with explicit provider name
+              | def <label> ( [<param>] ) : <type> = <term>     // function declaration
+              | def <label> '[' <param> ']' = <term>            // function declaration with explicit provider name
               | assuming <param>                                // add name type assumptions
               | prc '[' <name> ']' : <type> = <term>            // create processes
               | exec <label> ( )                                // execute function

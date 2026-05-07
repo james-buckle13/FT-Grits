@@ -476,7 +476,7 @@ func (f *CallForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 		functionCallBody := CopyForm(functionCall.Body)
 
 		if functionCall.UsesExplicitProvider && arity == functionCall.Arity() {
-			// let f[ExplicitProvider, ...] = body    <- called using f(...)
+			// def f[ExplicitProvider, ...] = body    <- called using f(...)
 			// No need to modify the ExplicitProvider, since it is already set as IsSelf = true (using SetProviderNameAsSelf in the function definition)
 
 			// Substitute parameters as needed
@@ -485,7 +485,7 @@ func (f *CallForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 			}
 
 		} else if functionCall.UsesExplicitProvider && arity-1 == functionCall.Arity() {
-			// let f[ExplicitProvider, ...] = body    <- called using f(w, ...)
+			// def f[ExplicitProvider, ...] = body    <- called using f(w, ...)
 
 			// Since the function that uses an explicit provider is called using explicit self,
 			// e.g. f(self, x1, x2) or f(w, x1, x2) where w has IsSelf true,
@@ -496,14 +496,14 @@ func (f *CallForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 				functionCallBody.Substitute(functionCall.Parameters[i-1], f.parameters[i])
 			}
 		} else if !functionCall.UsesExplicitProvider && arity == functionCall.Arity() {
-			// let f(...) = body    <- called using f(...)
+			// def f(...) = body    <- called using f(...)
 
 			// just substitute the parameters
 			for i := range functionCall.Parameters {
 				functionCallBody.Substitute(functionCall.Parameters[i], f.parameters[i])
 			}
 		} else if !functionCall.UsesExplicitProvider && arity-1 == functionCall.Arity() {
-			// let f(...) = body    <- called using f(w, ...), then w is ignored since there is no explicit provider used
+			// def f(...) = body    <- called using f(w, ...), then w is ignored since there is no explicit provider used
 
 			for i := 1; i < len(f.parameters); i++ {
 				functionCallBody.Substitute(functionCall.Parameters[i-1], f.parameters[i])

@@ -8,7 +8,7 @@ type mapType = lin /\ rep (nat -* nat)
 
 // Takes a list of natural numbers and performs a mapping function 
 // 'f' (replicable mode) on each element, providing an updated list
-let map(f : mapType, l : listNat) : listNat =
+def map(f : mapType, l : listNat) : listNat =
     case l (
           cons<l'> => <curr, l''> <- recv l';
                       <f', f''> <- split f;                           // replicate the mapping channel f
@@ -22,7 +22,7 @@ let map(f : mapType, l : listNat) : listNat =
     )
 
 // Replicable process that increments a number
-let mapByInc() : mapType  = 
+def mapByInc() : mapType  = 
     s <- shift self;           
     <toAdd, result> <- recv s; 
     self.succ<toAdd>              // increment by one 'succ'

@@ -8,7 +8,7 @@ type mapType = lin /\ rep (nat -* nat)
 
 // Takes a list of natural numbers and performs a mapping function 
 // 'f' (replicable mode) on each element, providing an updated list
-let map(f : mapType, l : listNat) : listNat =
+def map(f : mapType, l : listNat) : listNat =
     case l (
           cons<l'> => <curr, l''> <- recv l';
                       <f', f''> <- split f;                           // replicate the mapping channel f
@@ -22,19 +22,19 @@ let map(f : mapType, l : listNat) : listNat =
     )
 
 // Replicable process that increments a number
-let mapByInc() : mapType  = 
+def mapByInc() : mapType  = 
     s <- shift self;           
     <toAdd, result> <- recv s; 
     self.succ<toAdd>              // increment by one 'succ'
 
 // Replicable process that doubles a number
-let mapByDoubling() : mapType  = 
+def mapByDoubling() : mapType  = 
     s <- shift self;
     <toDouble, result> <- recv s;
     doubled <- new double(toDouble);
     fwd result doubled
 
-let main() : listNat =
+def main() : listNat =
     l : listNat <- new simpList();
     f : mapType <- new mapByInc();
     map(f, l)
@@ -43,7 +43,7 @@ let main() : listNat =
 exec main()
 
 // Init with print function
-let main2() : lin 1 =
+def main2() : lin 1 =
     m : listNat <- new main();
     printListNat(m)
 
@@ -51,7 +51,7 @@ let main2() : lin 1 =
 exec main2()
 
 // Print list without mapping
-let main3() : lin 1 =
+def main3() : lin 1 =
     l : listNat <- new simpList();
     printListNat(l)
 
@@ -64,7 +64,7 @@ let main3() : lin 1 =
 ///////// Natural Number Operations /////////
 
 // Adds two natural numbers
-let addNats(x : nat, y : nat) : nat =
+def addNats(x : nat, y : nat) : nat =
     case x (
           zero<x'> => // print zero;
                       wait x'; fwd self y
@@ -74,7 +74,7 @@ let addNats(x : nat, y : nat) : nat =
     )
 
 // Returns the double value for a natural number
-let double(x : nat) : nat =
+def double(x : nat) : nat =
     case x (
           zero<x'> => self.zero<x'>
         | succ<x'> => h <- new double(x');
@@ -86,7 +86,7 @@ let double(x : nat) : nat =
 ///////// Natural numbers lists and constants /////////
 
 // Provide a list containing cons(1, cons(0, nil))
-let simpList() : listNat =
+def simpList() : listNat =
     n1'' : lin 1 <- new close self;
     n1'  : nat <- new self.zero<n1''>;
     n1 : nat <- new self.succ<n1'>; // succ(zero)
@@ -107,7 +107,7 @@ let simpList() : listNat =
 // Create a list containing the numbers 3, 2 and 1: 
 //   cons(3, cons(2, cons(1, nil))), 
 //   where 1, 2 and 3 are represented as a nat structure
-let largerList() : listNat =
+def largerList() : listNat =
     n1 : nat <- new nat1(); // succ(zero)
     n2 : nat <- new nat2(); // succ(succ(zero))
     n3 : nat <- new nat3(); // succ(succ(succ(zero)))
@@ -123,14 +123,14 @@ let largerList() : listNat =
     fwd self l3
 
 // 1 : S(0)
-let nat1() : nat =
+def nat1() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
   fwd self s1
 
 // 2 : S(S(0))
-let nat2() : nat =
+def nat2() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -138,7 +138,7 @@ let nat2() : nat =
   fwd self s2
 
 // 3 : S(S(S(0)))
-let nat3() : nat =
+def nat3() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -147,7 +147,7 @@ let nat3() : nat =
   fwd self s3
 
 // 4 : S(S(S(S(0))))
-let nat4() : nat =
+def nat4() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -157,7 +157,7 @@ let nat4() : nat =
   fwd self s4
 
 // 5 : S(S(S(S(S(0)))))
-let nat5() : nat =
+def nat5() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -169,12 +169,12 @@ let nat5() : nat =
 
 ///////// Printing Helpers /////////
 
-let printListNat(l : listNat) : lin 1 = 
+def printListNat(l : listNat) : lin 1 = 
           y <- new consumeListNat(l); 
           wait y;
           close self
 
-let consumeListNat(l : listNat) : lin 1 = 
+def consumeListNat(l : listNat) : lin 1 = 
         case l ( cons<c> => print _cons_;
                             <element, remainingList> <- recv c;
                             elementDone <- new consumeNat(element);
@@ -186,11 +186,11 @@ let consumeListNat(l : listNat) : lin 1 =
                             wait c; close self
         )
 
-let consumeNat(n : nat) : lin 1 = 
+def consumeNat(n : nat) : lin 1 = 
         case n ( zero<c> => print zero; wait c; close self
                | succ<c> => print succ; consumeNat(c))
 
-let printNat(n : nat) : lin 1 = 
+def printNat(n : nat) : lin 1 = 
           y <- new consumeNat(n); 
           wait y;
           close self

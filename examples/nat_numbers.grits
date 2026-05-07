@@ -2,7 +2,7 @@
 type nat = +{zero : 1, succ : nat}
 
 // Provide double the value of x
-let double(x : nat) : nat =
+def double(x : nat) : nat =
     case x (
           zero<x'> => self.zero<x'>
         | succ<x'> => h <- new double(x');
@@ -11,7 +11,7 @@ let double(x : nat) : nat =
     )
 
 // Provide half the value of x
-let half(x : nat) : nat =
+def half(x : nat) : nat =
     case x (
         zero<x'> => self.zero<x'>
       | succ<x'> => 
@@ -23,7 +23,7 @@ let half(x : nat) : nat =
     )
 
 // Add two numbers
-let add(x : nat, y : nat) : nat = 
+def add(x : nat, y : nat) : nat = 
     case x ( zero<x'> => wait x';
                          fwd self y
            | succ<x'> => y' : nat <- new self.succ<y>;
@@ -31,7 +31,7 @@ let add(x : nat, y : nat) : nat =
     )
 
 // Add 1 to x
-let add1(x : nat) : nat =
+def add1(x : nat) : nat =
     self.succ<x>
 
 // prc[a] : nat = nat5()
@@ -54,11 +54,11 @@ prc[c] : 1 = printNat(b)
 
 ///////// Printing Helpers /////////
 
-let consumeNat(n : nat) : 1 = 
+def consumeNat(n : nat) : 1 = 
         case n ( zero<c> => print zero; wait c; close self
                | succ<c> => print succ; consumeNat(c))
 
-let printNat(n : nat) : 1 = 
+def printNat(n : nat) : 1 = 
           y <- new consumeNat(n); 
           wait y;
           close self
@@ -66,19 +66,19 @@ let printNat(n : nat) : 1 =
 ///////// Natural numbers constants /////////
 
 // 0
-let nat0() : nat =
+def nat0() : nat =
   t : 1 <- new close self;
   self.zero<t>
 
 // 1 : S(0)
-let nat1() : nat =
+def nat1() : nat =
   t : 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
   fwd self s1
 
 // 2 : S(S(0))
-let nat2() : nat =
+def nat2() : nat =
   t : 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -86,7 +86,7 @@ let nat2() : nat =
   fwd self s2
 
 // 3 : S(S(S(0)))
-let nat3() : nat =
+def nat3() : nat =
   t : 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -95,7 +95,7 @@ let nat3() : nat =
   fwd self s3
 
 // 4 : S(S(S(S(0))))
-let nat4() : nat =
+def nat4() : nat =
   t : 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -105,7 +105,7 @@ let nat4() : nat =
   fwd self s4
 
 // 5 : S(S(S(S(S(0)))))
-let nat5() : nat =
+def nat5() : nat =
   t : 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -117,7 +117,7 @@ let nat5() : nat =
 
 
 // 10 : S(S(S(S(S(S(S(S(S(S(0))))))))))
-let nat10() : nat =
+def nat10() : nat =
   t   : 1   <- new close self;
   z   : nat <- new self.zero<t>;
   s1  : nat <- new self.succ<z>; 

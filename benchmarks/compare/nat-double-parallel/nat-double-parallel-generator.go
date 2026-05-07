@@ -61,7 +61,7 @@ type listNat = +{cons : nat * listNat, nil : 1}
 	buffer.WriteString(firstPart)
 
 	const commonFunctions = `
-let double(x : nat) : nat =
+def double(x : nat) : nat =
 case x (
 		zero<x'> => self.zero<x'>
 	| succ<x'> => h <- new double(x');
@@ -70,12 +70,12 @@ case x (
 )
 
 // Creates an empty list
-let emptyList() : listNat =
+def emptyList() : listNat =
   term : 1 <- new close self;
   self.nil<term>
 
 // Appends an element to an existing list
-let appendElement(elem : nat, K : listNat) : listNat =
+def appendElement(elem : nat, K : listNat) : listNat =
   next : nat * listNat <- new (send self<elem, K>);
   self.cons<next>
 `
@@ -83,7 +83,7 @@ let appendElement(elem : nat, K : listNat) : listNat =
 
 	const useDoublingFunc = `
 // Doubles a number 5 times (i.e. produces 2^5). It needs to receive a 'start' message to initiate execution
-let performSomeDoubling() : &{start : nat} =
+def performSomeDoubling() : &{start : nat} =
 	case self (
 		start<result> =>
 		a <- new nat1();
@@ -99,7 +99,7 @@ let performSomeDoubling() : &{start : nat} =
 
 	const testPart1 = `
 // Creates the testing environment
-let runTests() : listNat =
+def runTests() : listNat =
     // Spawn all parallel instances
 `
 	buffer.WriteString(testPart1)
@@ -142,7 +142,7 @@ let runTests() : listNat =
 ///////// Natural numbers constants /////////
 
 // 1 : S(0)
-let nat1() : nat =
+def nat1() : nat =
   t : 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s0 : nat <- new self.succ<z>;
@@ -150,16 +150,16 @@ let nat1() : nat =
 
 ///////// Printing Helpers /////////
 
-let consumeNat(n : nat) : 1 =
+def consumeNat(n : nat) : 1 =
         case n ( zero<c> => print zero; wait c; close self
                | succ<c> => print succ; consumeNat(c))
 
-let printNat(n : nat) : 1 =
+def printNat(n : nat) : 1 =
           y <- new consumeNat(n);
           wait y;
           close self
 
-let consumeList(l : listNat) : 1 =
+def consumeList(l : listNat) : 1 =
         case l ( cons<c> => print _cons_;
                             <b, L2> <- recv c;
                             bConsume <- new consumeNat(b);
@@ -169,7 +169,7 @@ let consumeList(l : listNat) : 1 =
                             wait c;
                             close self)
 
-let printList(l : listNat) : 1 =
+def printList(l : listNat) : 1 =
           y <- new consumeList(l);
           wait y;
           close self

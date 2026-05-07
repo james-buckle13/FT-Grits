@@ -8,7 +8,7 @@ type authType = aff +{ auth : lin /\ aff transaction,
 
 type transaction = lin +{start : +{finish : 1}}
 
-let bank() : bankType =
+def bank() : bankType =
       case self (
           login<s>     => auth <- new authService();
                           self.auth<auth>
@@ -17,7 +17,7 @@ let bank() : bankType =
         | gen_query<s> => bank()
     )
 
-let authService() : lin /\ aff transaction =
+def authService() : lin /\ aff transaction =
     s' <- shift self;
     // Perform transaction in linear mode
     s'' : lin 1 <- new close self;
@@ -30,7 +30,7 @@ let authService() : lin /\ aff transaction =
 //                     close self
 
 //prc[bankService] : bankType = bank()
-let user(bankService : bankType) : lin 1 =
+def user(bankService : bankType) : lin 1 =
     print _attempt_login_;
     b : authType <- new bankService.login<self>; 
     case b (
@@ -47,7 +47,7 @@ let user(bankService : bankType) : lin 1 =
        | not_auth<b'> => drop b'; close self
     )
 
-// let main() : lin 1 =    // main process
+// def main() : lin 1 =    // main process
 //     b : bankType <- new bank();
 //     user(b) 
 //   

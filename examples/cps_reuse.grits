@@ -3,12 +3,12 @@
 type A = lin 1 
 type B = lin +{label1 : 1}
 
-let simpleWait(a : A) : A = 
+def simpleWait(a : A) : A = 
     wait a; 
     print _a_stopped_;
     close self
 
-let hello() : A = 
+def hello() : A = 
     a : A <- new close self;
     a <- new simpleWait(a);    // a is reused multiple times
     a <- new simpleWait(a);    // ^
@@ -21,12 +21,12 @@ let hello() : A =
 
 exec hello()                  // Executes the hello() procedure
 
-let makeChoice(a : A) : B = 
+def makeChoice(a : A) : B = 
     wait a;
     w : lin 1 <- new close self;
     self.label1<w>
 
-let consumeChoice(a : B) : A = 
+def consumeChoice(a : B) : A = 
     case a (
         label1<a> => print _received_label1_; fwd self a
     ) 

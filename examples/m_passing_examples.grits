@@ -8,7 +8,7 @@
 
 type A1 = mul 1 * 1
 type B1 = mul 1
-let eg1(x : A1 * B1) : B1 * A1  = 
+def eg1(x : A1 * B1) : B1 * A1  = 
     <y, x'> <- recv x; 
     send self<x', y>
 
@@ -20,7 +20,7 @@ type B2 = lin 1
 type lr = +{left : A2, right : B2}
 type lr' = &{left : A2, right : B2}
 
-let eg2(x : lr, y : lr') : A2 * B2  = 
+def eg2(x : lr, y : lr') : A2 * B2  = 
     case x (
         left<x'>  => y' : B2 <- new y.right<self>;
                      send self<x', y'>
@@ -36,7 +36,7 @@ type B3 = rep 1
 
 type C3 = &{left : A3, right : B3}
 
-let eg3(p : C3) : A3 * B3 = 
+def eg3(p : C3) : A3 * B3 = 
     q : C3 <- new fwd self p;
     <p1, p2> <- split q;
     x : A3 <- new p1.left<self>;
@@ -49,7 +49,7 @@ let eg3(p : C3) : A3 * B3 =
 type A4 = aff 1
 type B4 = aff 1
 
-let eg4(x : aff A4 * B4) : aff &{left : A4, right : B4} =
+def eg4(x : aff A4 * B4) : aff &{left : A4, right : B4} =
     case self (
         left<p1>  => <y, z> <- recv x; 
                      drop z;
@@ -76,7 +76,7 @@ let eg4(x : aff A4 * B4) : aff &{left : A4, right : B4} =
 type A5 = mul 1
 type B5 = mul 1 * 1
 
-let eg5(f : mul \/ lin (A5 -* B5)) : (mul \/ lin A5) -* (mul \/ lin B5) = 
+def eg5(f : mul \/ lin (A5 -* B5)) : (mul \/ lin A5) -* (mul \/ lin B5) = 
     <x, y> <- recv self;
     w <- shift f;
     v <- shift x;
@@ -92,7 +92,7 @@ type B = lin 1 * 1
 type before = lin /\ aff (A -* B)
 type after = (lin /\ aff A) -* (lin /\ aff B)
 
-let upDist(f : before) : after = 
+def upDist(f : before) : after = 
     <x, y> <- recv self;
     y' <- shift self;
     x' : A <- new cast x<self>;
@@ -108,7 +108,7 @@ type C6 = 1
 
 type xType = +{left : A6, right : B6} -* C6
 type resType = &{left : A6 -* C6, right : B6 -* C6}
-let eg6(x : xType) : resType = 
+def eg6(x : xType) : resType = 
     case self (
           left<ac>  => <a, c> <- recv self;
                        ab : +{left : A6, right : B6} <- new self.left<a>;
@@ -127,7 +127,7 @@ type C6' = 1
 
 type yType' = &{left : A6' -* C6', right : B6' -* C6'}
 type resType' = +{left : A6', right : B6'} -* C6'
-let eg6reverse(y : yType') : resType' = 
+def eg6reverse(y : yType') : resType' = 
     <ab, c> <- recv self;
     case ab (
           left<a>  => ac : A6' -* C6' <- new y.left<self>;
@@ -142,7 +142,7 @@ let eg6reverse(y : yType') : resType' =
 // bits, bits ⊢ bits
 
 type bits = +{b0 : bits, b1 : bits}
-let nor(x : bits, y : bits) : bits = 
+def nor(x : bits, y : bits) : bits = 
     case x (
           b0<x'> => case y (
                           b0<y'> => z' <- new nor(x', y');
@@ -159,7 +159,7 @@ let nor(x : bits, y : bits) : bits =
                     ) 
     )
 
-let or(x : bits, y : bits) : bits = 
+def or(x : bits, y : bits) : bits = 
     w <- new nor(x, y);
     <u, u'> <- split w;
     nor(u, u')

@@ -105,7 +105,7 @@ func preliminaryFunctionDefinitionsChecks(globalEnv *GlobalEnvironment) error {
 
 	var typesToCheck []types.SessionType
 
-	// Analyse the function declarations types (i.e. from 'let f(x : B) : A = ...', check types A & B)
+	// Analyse the function declarations types (i.e. from 'def f(x : B) : A = ...', check types A & B)
 	unique := make(map[string]bool)
 	for _, f := range *globalEnv.FunctionDefinitions {
 
@@ -371,7 +371,7 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 // -> providerShadowName    <- name of the process providing on (nil when name 'self' is used instead)
 // -> providerType    		<- the type of the provider (i.e. type of provider name 'self')
 // -> labelledTypesEnv 		<- [read-only] keeps the mapping of pre-defined types (type A = ...)
-// -> sigma           	 	<- [read-only] ∑: keeps the mapping of pre-defined function definitions (let f() : A = ...)
+// -> sigma           	 	<- [read-only] ∑: keeps the mapping of pre-defined function definitions (def f() : A = ...)
 // -> globalEnv           	<- [read-only] contains the logging capabilities
 
 // */-*: send w<u, v>

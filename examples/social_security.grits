@@ -17,7 +17,7 @@ type ssn = mul +{cons : (rep \/ mul digit) * ssn, nil : 1}
 
 ///////// Start Execution /////////
 
-let main() : lin 1 =
+def main() : lin 1 =
     ss : ssn <- new ssExample(); // contains social security number 43210
     <ss1, ss2> <- split ss;
 
@@ -50,7 +50,7 @@ exec main()
 
 ///////// Hospital /////////
 
-let hospital_admission(n : ssn) : lin +{valid : 1, not_valid : 1} =
+def hospital_admission(n : ssn) : lin +{valid : 1, not_valid : 1} =
     res : mul +{even : 1, odd : 1} <- new even_odd(n); // check if n is even
 
     case res (
@@ -67,12 +67,12 @@ let hospital_admission(n : ssn) : lin +{valid : 1, not_valid : 1} =
     )
 
 // check if n is even or odd
-let even_odd(n : ssn) : mul +{even : 1, odd : 1} =
+def even_odd(n : ssn) : mul +{even : 1, odd : 1} =
     c : rep 1 <- new close self;
     d : digit <- new self._0<c>; // dummy digit
     even_odd_inner(n, d)
 
-let even_odd_inner(n : ssn, result : digit) : mul +{even : 1, odd : 1} =
+def even_odd_inner(n : ssn, result : digit) : mul +{even : 1, odd : 1} =
     case n (
         cons<n'> => 
             <curr, tail> <- recv n';
@@ -84,7 +84,7 @@ let even_odd_inner(n : ssn, result : digit) : mul +{even : 1, odd : 1} =
             even_odd_digit(result) // check the last digit
     )
 
-let even_odd_digit(d : digit) : mul +{even : 1, odd : 1} =
+def even_odd_digit(d : digit) : mul +{even : 1, odd : 1} =
     case d (
         _0<c> => wait c; 
                  c' : mul 1 <- new close self;
@@ -119,7 +119,7 @@ let even_odd_digit(d : digit) : mul +{even : 1, odd : 1} =
     )
 
 ///////// Insurance /////////
-let insurance(n : ssn) : lin 1 =
+def insurance(n : ssn) : lin 1 =
     n' <- new encrypt(n);
     print encrypted_ss;
     p <- new printSS(n');
@@ -130,7 +130,7 @@ let insurance(n : ssn) : lin 1 =
 type ss_cons = mul (rep \/ mul digit) * ssn
 
 // encryption by flipping each digit, e.g. 0 -> 9, 1 -> 8, ..., 8 -> 1, 9 -> 0
-let encrypt(n : ssn) : ssn =
+def encrypt(n : ssn) : ssn =
     case n ( cons<c> => 
         <curr_dgt, remaining_number> <- recv c;
         curr_rep <- shift curr_dgt;
@@ -191,14 +191,14 @@ let encrypt(n : ssn) : ssn =
     )
 
 // decrypt by encrypting again
-let decrypt(n : ssn) : ssn =
+def decrypt(n : ssn) : ssn =
     encrypt(n)
 
 
 ///////// Social Security Sample /////////
 
 // Social Security example: 43210 012 = cons(0, cons(1, cons(2, nil)))
-let ssExample() : ssn =
+def ssExample() : ssn =
     // nil
     lnil' : mul 1 <- new close self;
     lnil  : ssn   <- new self.nil<lnil'>;
@@ -229,7 +229,7 @@ let ssExample() : ssn =
     self.cons<l4'>
 
 // Social Security example: 13 = cons(1, cons(3, nil))
-let ssExample2() : ssn =
+def ssExample2() : ssn =
     // nil
     lnil' : mul 1              <- new close self;
     lnil  : ssn <- new self.nil<lnil'>;
@@ -243,61 +243,61 @@ let ssExample2() : ssn =
     self.cons<l1'>
 
 // Multicast digit 0
-let zero() : rep \/ mul digit =
+def zero() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._0<c>;
     cast self<n>
 
 // Multicast digit 1
-let one() : rep \/ mul digit =
+def one() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._1<c>;
     cast self<n>
 
 // Multicast digit 2
-let two() : rep \/ mul digit =
+def two() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._2<c>;
     cast self<n>
 
 // Multicast digit 3
-let three() : rep \/ mul digit =
+def three() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._3<c>;
     cast self<n>
 
 // Multicast digit 4
-let four() : rep \/ mul digit =
+def four() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._4<c>;
     cast self<n>
 
 // Multicast digit 5
-let five() : rep \/ mul digit =
+def five() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._5<c>;
     cast self<n>
 
 // Multicast digit 6
-let six() : rep \/ mul digit =
+def six() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._6<c>;
     cast self<n>
 
 // Multicast digit 7
-let seven() : rep \/ mul digit =
+def seven() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._7<c>;
     cast self<n>
 
 // Multicast digit 8
-let eight() : rep \/ mul digit =
+def eight() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._8<c>;
     cast self<n>
 
 // Multicast digit 9
-let nine() : rep \/ mul digit =
+def nine() : rep \/ mul digit =
     c : rep 1 <- new close self;
     n : digit <- new self._9<c>;
     cast self<n>
@@ -305,12 +305,12 @@ let nine() : rep \/ mul digit =
 
 ///////// Printing Helpers /////////
 
-let printSS(l : ssn) : lin 1 = 
+def printSS(l : ssn) : lin 1 = 
           y <- new consumeSocialSecurityNo(l); 
           wait y;
           close self
 
-let consumeSocialSecurityNo(l : ssn) : mul 1 = 
+def consumeSocialSecurityNo(l : ssn) : mul 1 = 
         case l ( cons<c> => // print _cons_;
                             <element, remainingList> <- recv c;
                             elementDone <- new consumeDigit(element);
@@ -322,7 +322,7 @@ let consumeSocialSecurityNo(l : ssn) : mul 1 =
                             wait c; close self
         )
 
-let consumeDigit(n : rep \/ mul digit) : mul 1 = 
+def consumeDigit(n : rep \/ mul digit) : mul 1 = 
     n <- shift n;
     case n (  _0<c> => print '0; wait c; close self
             | _1<c> => print _1; wait c; close self
@@ -335,7 +335,7 @@ let consumeDigit(n : rep \/ mul digit) : mul 1 =
             | _8<c> => print _8; wait c; close self
             | _9<c> => print _9; wait c; close self)
 
-//let printNat(n : digit) : lin 1 = 
+//def printNat(n : digit) : lin 1 = 
 //          y <- new consumeDigit(n); 
 //          wait y;
 //          close self

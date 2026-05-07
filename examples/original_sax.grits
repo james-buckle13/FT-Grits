@@ -3,7 +3,7 @@
 type A1 = 1
 type B1 = 1
 type C1 = 1
-let eg1(x : A1 -* B1, y : B1 -* C1) : A1 -* C1 =
+def eg1(x : A1 -* B1, y : B1 -* C1) : A1 -* C1 =
     <u, w> <- recv self; 
     b : B1 <- new send x<u, self>;
     send y<b, w>
@@ -11,7 +11,7 @@ let eg1(x : A1 -* B1, y : B1 -* C1) : A1 -* C1 =
 
 type A2 = 1
 type B2 = 1 * 1
-let eg2(x : &{left : A2, right : B2}) : A2 * B2 =
+def eg2(x : &{left : A2, right : B2}) : A2 * B2 =
     <x', x''> <- split x;
     y : A2 <- new x'.left<self>;
     z : B2 <- new x''.right<self>;
@@ -20,7 +20,7 @@ let eg2(x : &{left : A2, right : B2}) : A2 * B2 =
 
 type A3 = 1
 type B3 = 1 * 1
-let eg3(x : A3 * B3) : &{left : A3, right : B3} =
+def eg3(x : A3 * B3) : &{left : A3, right : B3} =
     <y, z> <- recv x;
     case self (
         left<u>  => drop z; fwd u y
@@ -30,7 +30,7 @@ let eg3(x : A3 * B3) : &{left : A3, right : B3} =
 type A4 = 1
 type B4 = 1 * 1
 type C4 = 1 * 1
-let eg4(p : &{left : A4 -* C4, right : B4 -* C4}) : +{left : A4, right : B4} -* C4 = 
+def eg4(p : &{left : A4 -* C4, right : B4 -* C4}) : +{left : A4, right : B4} -* C4 = 
     <s, z> <- recv self;
     case s (
         left<x>  => r : A4 -* C4 <- new p.left<self>;

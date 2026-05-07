@@ -233,9 +233,9 @@ func (s *scanner) scanLabel(ch rune) (token tok, value string, startPos, endPos 
 	case "type":
 		s.lastToken = TYPE
 		return TYPE, buf.String(), startPos, endPos
-	case "let":
-		s.lastToken = LET
-		return LET, buf.String(), startPos, endPos
+	case "def":
+		s.lastToken = DEF
+		return DEF, buf.String(), startPos, endPos
 	case "in":
 		s.lastToken = IN
 		return IN, buf.String(), startPos, endPos

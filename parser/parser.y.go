@@ -70,7 +70,7 @@ const PUSH = 57376
 const NEW = 57377
 const SNEW = 57378
 const TYPE = 57379
-const LET = 57380
+const DEF = 57380
 const IN = 57381
 const END = 57382
 const SPRC = 57383
@@ -131,7 +131,7 @@ var gritsToknames = [...]string{
 	"NEW",
 	"SNEW",
 	"TYPE",
-	"LET",
+	"DEF",
 	"IN",
 	"END",
 	"SPRC",

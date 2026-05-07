@@ -243,7 +243,7 @@ func TestSimpleSPLITCALL(t *testing.T) {
 	// SPLIT + CALL
 
 	input := ` /* SPLIT + CALL rule */
-				let D1(c) =  <a, b> <- recv c; close self
+				def D1(c) =  <a, b> <- recv c; close self
 
 				prc[pid0] = <x1, x2> <- split +pid1; close self
 				prc[pid1] = D1(pid2)
@@ -362,8 +362,8 @@ func TestSimpleFunctionCalls(t *testing.T) {
 	// Function calls, with and without explicit self passed
 
 	input := ` 
-		let f(x,y) = send x<y, self>
-		let g() = <a, b> <- recv self; wait a; close b
+		def f(x,y) = send x<y, self>
+		def g() = <a, b> <- recv self; wait a; close b
 		
 		prc[pid1] = f(pid2, pid3)
 		prc[pid2] = g()
@@ -373,8 +373,8 @@ func TestSimpleFunctionCalls(t *testing.T) {
 		prc[pid5] = g(self)
 		prc[pid6] = close self
 		
-		let ff[w, x, y] = send x<y, w>
-		let gg[w] = <a, b> <- recv w; wait a; close w
+		def ff[w, x, y] = send x<y, w>
+		def gg[w] = <a, b> <- recv w; wait a; close w
 		
 		prc[pid7] = ff(pid8, pid9)
 		prc[pid8] = gg()
@@ -397,7 +397,7 @@ func TestExec(t *testing.T) {
 	input := ` 
 	type A = 1
 
-	let f() : A = x : A <- new close self; 
+	def f() : A = x : A <- new close self; 
 				  wait x; 
 				  close self
 	
@@ -420,8 +420,8 @@ func TestCall(t *testing.T) {
 	type A = &{label : 1}
 	type B = 1
 
-	let f1(x : A) : B = x.label<self>
-	let f2() : A = case self (label<zz> => close self )
+	def f1(x : A) : B = x.label<self>
+	def f2() : A = case self (label<zz> => close self )
 
 	prc[y] : B = f1(z)
 	prc[z] : A = f2()`
@@ -523,8 +523,8 @@ func TestNestedSelectWithTyping(t *testing.T) {
 
 	input := ` 
 	type A = &{label : +{next : 1}}
-	let f1(x : A) : +{next : 1} = x.label<self>
-	let f2(y : 1) : A = case self (label<zz> => zz.next<y> )
+	def f1(x : A) : +{next : 1} = x.label<self>
+	def f2(y : 1) : A = case self (label<zz> => zz.next<y> )
 
 	prc[x] : +{next : 1} = f1(z)
 	prc[z] : A = f2(y)

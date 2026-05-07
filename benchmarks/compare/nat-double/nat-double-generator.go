@@ -38,7 +38,7 @@ func repeat(n int) bytes.Buffer {
 	const firstPart = `
 type nat = +{zero : 1, succ : nat}
 
-let double(x : nat) : nat =
+def double(x : nat) : nat =
     case x (
           zero<x'> => self.zero<x'>
         | succ<x'> => h <- new double(x');
@@ -46,7 +46,7 @@ let double(x : nat) : nat =
                       self.succ<d>
     )
 
-let plus1(y : nat) : nat = 
+def plus1(y : nat) : nat = 
     case y (
           zero<x'> => x'' : nat <- new self.zero<x'>;
                       self.succ<x''>
@@ -55,12 +55,12 @@ let plus1(y : nat) : nat =
     )
 
 // Print result
-let printNat(n : nat) : 1 = 
+def printNat(n : nat) : 1 = 
           y <- new consumeNat(n); 
           wait y;
           close self
 
-let consumeNat(n : nat) : 1 = 
+def consumeNat(n : nat) : 1 = 
         case n ( zero<c> => print zero; wait c; close self
                | succ<c> => print succ; consumeNat(c))
 

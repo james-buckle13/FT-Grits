@@ -1,14 +1,14 @@
- let ff() : 1 =
+ def ff() : 1 =
     w : 1 <- new close self;
     wait w;
     close self
     
- let ff2(a : 1) : 1 =
+ def ff2(a : 1) : 1 =
     wait a;
     close self
 
 // invalid
-// let ggg() : 1 =  
+// def ggg() : 1 =  
 //    f1 <- new ff();
 //    f1 <- new ff();
 //    wait f1; 
@@ -16,7 +16,7 @@
 //    close self
 
 // valid
-let ggg() : 1 =  
+def ggg() : 1 =  
    f1 <- new ff();
    f1 <- new ff2(f1);
    wait f1; 

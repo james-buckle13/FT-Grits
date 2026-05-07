@@ -29,7 +29,7 @@ import (
 	faultTolerancePromise uint64
 }
 
-%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE LET IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC SPAWN SYNC AT
+%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE DEF IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC SPAWN SYNC AT
 %type <strval> LABEL
 %type <statements> statements 
 %type <common_type> process_def
@@ -71,7 +71,7 @@ program :
 		{ 
 			gritslex.(*lexer).processesOrFunctionsRes = $1
 		};
-/*	 | LET functions IN processes END { }; */
+/*	 | DEF functions IN processes END { }; */
 
 /* A program may consist a combination of processes, function definitions and types */
 statements : process_def             { $$ = []unexpandedProcessOrFunction{$1} }
@@ -194,12 +194,12 @@ assuming_def : ASSUMING names_with_type_ann
 
 function_def : 
 			/* without type - todo remove option to force types */
-			 LET LABEL LPAREN optional_names_with_type_ann RPAREN AT fault_tolerance_promise EQUALS expression
+			 DEF LABEL LPAREN optional_names_with_type_ann RPAREN AT fault_tolerance_promise EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $9, UsesExplicitProvider: false, FaultTolerancePromise: $7}, position: gritsVAL.currPosition} }
-			| /* with type annotation */ LET LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type AT fault_tolerance_promise EQUALS expression
+			| /* with type annotation */ DEF LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type AT fault_tolerance_promise EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $11, Type: $7, UsesExplicitProvider: false, FaultTolerancePromise: $9}, position: gritsVAL.currPosition} }
 			| /* explicit provider name : without type - todo remove option to force types */
-			 LET LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression
+			 DEF LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 
@@ -211,7 +211,7 @@ function_def :
 								// Type: $6,
 								}, position: gritsVAL.currPosition} }
 			| /* explicit provider name :  with type annotation */
-			 LET LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression 
+			 DEF LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK AT fault_tolerance_promise EQUALS expression 
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 

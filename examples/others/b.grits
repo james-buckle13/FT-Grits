@@ -3,7 +3,7 @@
 type A = &{label : 1}
 type B = 1 -* 1
 
-let f(y : A, z : B) : A * B = send self<y, z>
+def f(y : A, z : B) : A * B = send self<y, z>
 
 assuming a : A, b : B
 

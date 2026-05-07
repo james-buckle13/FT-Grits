@@ -6,7 +6,7 @@ type bankType = lin &{ secure : transaction,
 type transaction = lin +{start : +{finish : 1}}
 type gen_query = aff +{some_query : 1}
 
-let bank() : bankType =
+def bank() : bankType =
       case self (
           secure<s>     => s' : lin 1 <- new close self;
                            s'' : lin +{finish : 1} <- new self.finish<s'>;
@@ -44,16 +44,16 @@ prc[user2] : lin 1 =
 //                     )
 //    )
 
-//let ex1(a : aff 1) : lin 1 =
+//def ex1(a : aff 1) : lin 1 =
 //    drop a;
 //    close self
 
-//let ex2(a : lin 1) : aff 1 =
+//def ex2(a : lin 1) : aff 1 =
 //    wait a;
 //    close self
 
 
-//let authService() : aff \/ lin transaction =
+//def authService() : aff \/ lin transaction =
 //    s' <- shift self;
 //    // Perform transaction in linear mode
 //    s'' : lin 1 <- new close self;

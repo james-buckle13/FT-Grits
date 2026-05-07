@@ -9,7 +9,7 @@ type A = treeNat
 type B = nat
 type reduceType = lin /\ rep ((B * B) -* B)
 type mapType = lin /\ rep (A -* B)
-let mapreduce(fs : reduceType, hs : mapType, t : treeNat) : B =
+def mapreduce(fs : reduceType, hs : mapType, t : treeNat) : B =
   case t (
         node<t'> => <l, r> <- recv t';
                     <fs', fs''> <- split fs;       // Duplicate fs
@@ -33,7 +33,7 @@ let mapreduce(fs : reduceType, hs : mapType, t : treeNat) : B =
 
 
 // Create an instance of a treeNat: [S(Z), [S(S(Z)), S(S(S(Z)))]node]node
-let treeNatEx() : treeNat = 
+def treeNatEx() : treeNat = 
   nat1 <- new nat1();
   nat2 <- new nat2();
   nat3 <- new nat3();
@@ -47,14 +47,14 @@ let treeNatEx() : treeNat =
   self.node<nodes>
 
 
-let reduceByAdding() : lin /\ rep ((nat * nat) -* nat) = 
+def reduceByAdding() : lin /\ rep ((nat * nat) -* nat) = 
   s <- shift self;
   <tree, result> <- recv s;
   <left, right> <- recv tree;
   currRes <- new addNats(left, right);
   fwd result currRes
 
-let mapByDoubling() : lin /\ rep (nat -* nat)  = 
+def mapByDoubling() : lin /\ rep (nat -* nat)  = 
   s <- shift self;
   <toDouble, result> <- recv s;
   doubled <- new double(toDouble);
@@ -71,7 +71,7 @@ prc[c] : lin 1 = printNat(b)
 ///////// Natural Number Operations /////////
 
 // Adds two natural numbers
-let addNats(x : nat, y : nat) : nat =
+def addNats(x : nat, y : nat) : nat =
     case x (
           zero<x'> => wait x'; fwd self y
         | succ<x'> => y'' : nat <- new self.succ<y>;
@@ -79,7 +79,7 @@ let addNats(x : nat, y : nat) : nat =
     )
 
 // Returns the double value for a natural number
-let double(x : nat) : nat =
+def double(x : nat) : nat =
     case x (
           zero<x'> => self.zero<x'>
         | succ<x'> => h <- new double(x');
@@ -89,14 +89,14 @@ let double(x : nat) : nat =
 
 
 // 1 : S(0)
-let nat1() : nat =
+def nat1() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
   fwd self s1
 
 // 2 : S(S(0))
-let nat2() : nat =
+def nat2() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -104,7 +104,7 @@ let nat2() : nat =
   fwd self s2
 
 // 3 : S(S(S(0)))
-let nat3() : nat =
+def nat3() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -113,7 +113,7 @@ let nat3() : nat =
   fwd self s3
 
 // 4 : S(S(S(S(0))))
-let nat4() : nat =
+def nat4() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -123,7 +123,7 @@ let nat4() : nat =
   fwd self s4
 
 // 5 : S(S(S(S(S(0)))))
-let nat5() : nat =
+def nat5() : nat =
   t : lin 1 <- new close self;
   z  : nat <- new self.zero<t>;
   s1 : nat <- new self.succ<z>; 
@@ -135,7 +135,7 @@ let nat5() : nat =
 
 ///////// Printing Helpers /////////
 
-let consumeTreeNat(l : treeNat) : lin 1 = 
+def consumeTreeNat(l : treeNat) : lin 1 = 
         case l ( node<c> => print _node_;
                             <left, right> <- recv c;
                             leftDone <- new consumeTreeNat(left);
@@ -147,16 +147,16 @@ let consumeTreeNat(l : treeNat) : lin 1 =
                | leaf<c> => printNat(c)
         )
 
-let printTreeNat(l : treeNat) : lin 1 = 
+def printTreeNat(l : treeNat) : lin 1 = 
           y <- new consumeTreeNat(l); 
           wait y;
           close self
 
-let consumeNat(n : nat) : lin 1 = 
+def consumeNat(n : nat) : lin 1 = 
         case n ( zero<c> => print zero; wait c; close self
                | succ<c> => print succ; consumeNat(c))
 
-let printNat(n : nat) : lin 1 = 
+def printNat(n : nat) : lin 1 = 
           y <- new consumeNat(n); 
           wait y;
           close self
