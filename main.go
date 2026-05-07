@@ -19,7 +19,7 @@ func main() {
 			// def b_body() : 1 * 1 @ 0 = term1: 1 <- new close self; term2: 1 <- new close self; send self <term1, term2> // to be used for checking type mismatch
 			// def new_body(): nat * 1 @ 0 = a <- spawn (a_body()); y <- sync <a>; <z, y'> <- recv y; wait y'; term: 1 <-new close self; send self <z, term>
 			// prc[a] : nat * 1 @ 1 = w <- new (new_body()); <z, w'> <- recv w; wait w'; term: 1 <-new close self; send self <z, term>
-			prc[a] : int * 1 @ 7 = term:1 <- new close self; let x = 5 in send self <x, term>
+			prc[a] : nat * 1 @ 7 = term:1 <- new close self; let x = 5 in send self <x, term>
 			`
 		dev(p)
 	} else {

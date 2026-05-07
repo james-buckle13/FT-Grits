@@ -477,7 +477,7 @@ func (q *UnitType) inferModality(labelledTypesEnv LabelledTypesEnv, usedLabels m
 	return q.Mode
 }
 
-func (q *IntType) inferModality(labelledTypesEnv LabelledTypesEnv, usedLabels map[string]bool) Modality {
+func (q *NatType) inferModality(labelledTypesEnv LabelledTypesEnv, usedLabels map[string]bool) Modality {
 	return q.Mode
 }
 
@@ -597,7 +597,7 @@ func (q *UnitType) assignUnsetModalities(labelledTypesEnv LabelledTypesEnv, curr
 	q.Mode = currentMode
 }
 
-func (q *IntType) assignUnsetModalities(labelledTypesEnv LabelledTypesEnv, currentMode Modality) {
+func (q *NatType) assignUnsetModalities(labelledTypesEnv LabelledTypesEnv, currentMode Modality) {
 	_, unset := q.Mode.(*UnsetMode)
 	if !unset {
 		// If the type already has a modality, then do not change it
@@ -768,7 +768,7 @@ func (q *UnitType) checkTypeModalities(labelledTypesEnv LabelledTypesEnv, curren
 	return nil
 }
 
-func (q *IntType) checkTypeModalities(labelledTypesEnv LabelledTypesEnv, currentMode Modality) error {
+func (q *NatType) checkTypeModalities(labelledTypesEnv LabelledTypesEnv, currentMode Modality) error {
 	_, unset := q.Mode.(*UnsetMode)
 	invalidMode, invalid := q.Mode.(*InvalidMode)
 

@@ -160,8 +160,8 @@ func (s *scanner) scanInteger(ch rune) (token tok, value string, startPos, endPo
 		}
 	}
 
-	s.lastToken = INT
-	return INT, buf.String(), startPos, endPos
+	s.lastToken = NAT
+	return NAT, buf.String(), startPos, endPos
 }
 
 // Scan label or keyword
@@ -264,9 +264,9 @@ func (s *scanner) scanLabel(ch rune) (token tok, value string, startPos, endPos 
 	case "let":
 		s.lastToken = LET
 		return LET, buf.String(), startPos, endPos
-	case "int":
-		s.lastToken = INT_TYPE
-		return INT_TYPE, buf.String(), startPos, endPos
+	case "nat":
+		s.lastToken = NAT_TYPE
+		return NAT_TYPE, buf.String(), startPos, endPos
 	case "in":
 		s.lastToken = IN
 		return IN, buf.String(), startPos, endPos

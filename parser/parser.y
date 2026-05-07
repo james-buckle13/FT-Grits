@@ -25,10 +25,10 @@ import (
 	sessionTypeInitial 	  types.SessionTypeInitial
 	sessionTypeAltInitial []types.OptionInitial
 	polarity 		      types.Polarity
-	integer 			  int
+	nat 			  	  uint64
 }
 
-%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE DEF IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC SPAWN SYNC AT LET IN INT INT_TYPE
+%token LABEL LEFT_ARROW RIGHT_ARROW UP_ARROW DOWN_ARROW  EQUALS DOT SEQUENCE COLON COMMA LPAREN RPAREN LSBRACK RSBRACK LANGLE RANGLE PIPE SEND RECEIVE CASE CLOSE WAIT CAST SHIFT ACCEPT ACQUIRE DETACH RELEASE DROP SPLIT PUSH NEW SNEW TYPE DEF IN END SPRC PRC FORWARD SELF PRINT PLUS MINUS TIMES AMPERSAND UNIT LCBRACK RCBRACK LOLLI PERCENTAGE ASSUMING EXEC SPAWN SYNC AT LET IN NAT NAT_TYPE
 %type <strval> LABEL
 %type <statements> statements 
 %type <common_type> process_def
@@ -50,7 +50,7 @@ import (
 %type <sessionTypeAltInitial> session_type_options_init
 %type <sessionTypeInitial> session_type_init
 %type <polarity> polarity
-%type <integer> INT
+%type <nat> NAT
 
 %left SEQUENCE RANGLE
 %right TIMES LOLLI UP_ARROW DOWN_ARROW
@@ -87,9 +87,9 @@ statements : process_def             { $$ = []unexpandedProcessOrFunction{$1} }
 /* A process is defined using the prc keyword */
 process_def : 
 			/* without type - todo remove option to force types */
-		    PRC LSBRACK names RSBRACK AT INT EQUALS expression 
+		    PRC LSBRACK names RSBRACK AT NAT EQUALS expression 
 				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$8, Providers: $3, FaultTolerancePromise: $6}, position: gritsVAL.currPosition} }
-		  | PRC LSBRACK names RSBRACK COLON session_type AT INT EQUALS expression 
+		  | PRC LSBRACK names RSBRACK COLON session_type AT NAT EQUALS expression 
 				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$10, Type: $6, Providers: $3, FaultTolerancePromise: $8}, position: gritsVAL.currPosition} };
 		/*| SPRC LSBRACK names RSBRACK COLON expression
 				{ $$ = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body:$6, Providers: $3}, position: gritsVAL.currPosition} };*/
@@ -133,7 +133,7 @@ expression : /* Send */ SEND name LANGLE name COMMA name RANGLE
 					{ $$ = process.NewDrop($2, $4) }
 		   | /* Brackets */ LPAREN expression RPAREN
 					{ $$ = $2 }
-		   | /* Let */ LET name EQUALS INT IN expression
+		   | /* Let */ LET name EQUALS NAT IN expression
 		   			{ $$ = process.NewLet($2, $4, $6)}
 		   | /* Print - for output */ PRINT LABEL SEQUENCE expression
 		   			{ $$ = process.NewPrint(process.Label{L: $2}, $4) };
@@ -186,12 +186,12 @@ assuming_def : ASSUMING names_with_type_ann
 
 function_def : 
 			/* without type - todo remove option to force types */
-			 DEF LABEL LPAREN optional_names_with_type_ann RPAREN AT INT EQUALS expression
+			 DEF LABEL LPAREN optional_names_with_type_ann RPAREN AT NAT EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $9, UsesExplicitProvider: false, FaultTolerancePromise: $7}, position: gritsVAL.currPosition} }
-			| /* with type annotation */ DEF LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type AT INT EQUALS expression
+			| /* with type annotation */ DEF LABEL LPAREN optional_names_with_type_ann RPAREN COLON session_type AT NAT EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: $2, Parameters: $4, Body: $11, Type: $7, UsesExplicitProvider: false, FaultTolerancePromise: $9}, position: gritsVAL.currPosition} }
 			| /* explicit provider name : without type - todo remove option to force types */
-			 DEF LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK AT INT EQUALS expression
+			 DEF LABEL LSBRACK LABEL comma_optional_names_with_type_ann RSBRACK AT NAT EQUALS expression
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 
@@ -203,7 +203,7 @@ function_def :
 								// Type: $6,
 								}, position: gritsVAL.currPosition} }
 			| /* explicit provider name :  with type annotation */
-			 DEF LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK AT INT EQUALS expression 
+			 DEF LABEL LSBRACK LABEL COLON session_type comma_optional_names_with_type_ann RSBRACK AT NAT EQUALS expression 
 					{ $$ = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: 
 							process.FunctionDefinition{
 								FunctionName: $2, 
@@ -233,8 +233,8 @@ session_type_init :
 				{ $$ = types.NewLabelTypeInitial($1) }
 		   | /* unit */ UNIT
 		   		{ $$ = types.NewUnitTypeInitial() }
-		   | /* int */ INT_TYPE
-		   		{ $$ = types.NewIntTypeInitial() }	
+		   | /* int */ NAT_TYPE
+		   		{ $$ = types.NewNatTypeInitial() }	
 		   | /* select +{ } */ PLUS LCBRACK session_type_options_init RCBRACK  
 		   		{ $$ = types.NewSelectLabelTypeInitial($3) }
 		   | /* branch &{ } */ AMPERSAND LCBRACK session_type_options_init RCBRACK  

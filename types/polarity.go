@@ -27,7 +27,7 @@ func (q *UnitType) Polarity() Polarity {
 	return POSITIVE
 }
 
-func (q *IntType) Polarity() Polarity {
+func (q *NatType) Polarity() Polarity {
 	return POSITIVE
 }
 

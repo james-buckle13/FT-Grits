@@ -34,9 +34,9 @@ func (l *lexer) Lex(yylval *gritsSymType) int {
 	yylval.currPosition = position.Position{StartLine: len(startPos.Lines) + 1, StartPos: startPos.Char}
 	yylval.strval = strval
 
-	if token == INT {
-		if i, err := strconv.Atoi(strval); err == nil {
-			yylval.integer = i
+	if token == NAT {
+		if val, err := strconv.ParseUint(strval, 10, 64); err == nil {
+			yylval.nat = val
 		}
 	}
 

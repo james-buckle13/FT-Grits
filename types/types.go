@@ -107,39 +107,39 @@ func (q *UnitType) Modality() Modality {
 	return q.Mode
 }
 
-// int: int
-type IntType struct {
+// nat: nat
+type NatType struct {
 	Mode Modality
 }
 
-func NewIntType(mode Modality) *IntType {
-	return &IntType{
+func NewNatType(mode Modality) *NatType {
+	return &NatType{
 		Mode: mode,
 	}
 }
 
-func (q *IntType) String() string {
-	return "int"
+func (q *NatType) String() string {
+	return "nat"
 }
 
-func (q *IntType) StringWithModality() string {
+func (q *NatType) StringWithModality() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("[")
 	buffer.WriteString(q.Mode.String())
-	buffer.WriteString("]int")
+	buffer.WriteString("]nat")
 
 	return buffer.String()
 }
 
-func (q *IntType) StringWithOuterModality() string {
+func (q *NatType) StringWithOuterModality() string {
 	var buffer bytes.Buffer
-	buffer.WriteString("int [")
+	buffer.WriteString("nat [")
 	buffer.WriteString(q.Mode.String())
 	buffer.WriteString("]")
 	return buffer.String()
 }
 
-func (q *IntType) Modality() Modality {
+func (q *NatType) Modality() Modality {
 	return q.Mode
 }
 
@@ -570,9 +570,9 @@ func innerEqualType(type1, type2 SessionType, snapshots map[string]bool, labelle
 		f2, ok2 := type2.(*UnitType)
 		return ok1 && ok2 && f1.Modality().Equals(f2.Modality())
 
-	case *IntType:
-		f1, ok1 := type1.(*IntType)
-		f2, ok2 := type2.(*IntType)
+	case *NatType:
+		f1, ok1 := type1.(*NatType)
+		f2, ok2 := type2.(*NatType)
 		return ok1 && ok2 && f1.Modality().Equals(f2.Modality())
 
 	case *SendType:
@@ -692,10 +692,10 @@ func CopyType(orig SessionType) SessionType {
 		if ok {
 			return NewUnitType(p.Mode.Copy())
 		}
-	case *IntType:
-		p, ok := orig.(*IntType)
+	case *NatType:
+		p, ok := orig.(*NatType)
 		if ok {
-			return NewIntType(p.Mode.Copy())
+			return NewNatType(p.Mode.Copy())
 		}
 	case *SendType:
 		p, ok := orig.(*SendType)
@@ -892,14 +892,14 @@ func (q *UnitTypeInitial) toSessionType(mode Modality) SessionType {
 	return NewUnitType(mode)
 }
 
-type IntTypeInitial struct{}
+type NatTypeInitial struct{}
 
-func NewIntTypeInitial() *IntTypeInitial {
-	return &IntTypeInitial{}
+func NewNatTypeInitial() *NatTypeInitial {
+	return &NatTypeInitial{}
 }
 
-func (q *IntTypeInitial) toSessionType(mode Modality) SessionType {
-	return NewIntType(mode)
+func (q *NatTypeInitial) toSessionType(mode Modality) SessionType {
+	return NewNatType(mode)
 }
 
 // Send: A * B

@@ -32,7 +32,7 @@ type gritsSymType struct {
 	sessionTypeInitial    types.SessionTypeInitial
 	sessionTypeAltInitial []types.OptionInitial
 	polarity              types.Polarity
-	integer               int
+	nat                   uint64
 }
 
 const LABEL = 57346
@@ -92,8 +92,8 @@ const SPAWN = 57399
 const SYNC = 57400
 const AT = 57401
 const LET = 57402
-const INT = 57403
-const INT_TYPE = 57404
+const NAT = 57403
+const NAT_TYPE = 57404
 
 var gritsToknames = [...]string{
 	"$end",
@@ -156,8 +156,8 @@ var gritsToknames = [...]string{
 	"SYNC",
 	"AT",
 	"LET",
-	"INT",
-	"INT_TYPE",
+	"NAT",
+	"NAT_TYPE",
 }
 
 var gritsStatenames = [...]string{}
@@ -787,13 +787,13 @@ gritsdefault:
 		gritsDollar = gritsS[gritspt-8 : gritspt+1]
 //line parser/parser.y:91
 		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[8].form, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[6].integer}, position: gritsVAL.currPosition}
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[8].form, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[6].nat}, position: gritsVAL.currPosition}
 		}
 	case 15:
 		gritsDollar = gritsS[gritspt-10 : gritspt+1]
 //line parser/parser.y:93
 		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[10].form, Type: gritsDollar[6].sessionType, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[8].integer}, position: gritsVAL.currPosition}
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: PROCESS_DEF, proc: incompleteProcess{Body: gritsDollar[10].form, Type: gritsDollar[6].sessionType, Providers: gritsDollar[3].names, FaultTolerancePromise: gritsDollar[8].nat}, position: gritsVAL.currPosition}
 		}
 	case 16:
 		gritsDollar = gritsS[gritspt-7 : gritspt+1]
@@ -907,7 +907,7 @@ gritsdefault:
 		gritsDollar = gritsS[gritspt-6 : gritspt+1]
 //line parser/parser.y:137
 		{
-			gritsVAL.form = process.NewLet(gritsDollar[2].name, gritsDollar[4].integer, gritsDollar[6].form)
+			gritsVAL.form = process.NewLet(gritsDollar[2].name, gritsDollar[4].nat, gritsDollar[6].form)
 		}
 	case 35:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
@@ -1053,13 +1053,13 @@ gritsdefault:
 		gritsDollar = gritsS[gritspt-9 : gritspt+1]
 //line parser/parser.y:190
 		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[9].form, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[7].integer}, position: gritsVAL.currPosition}
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[9].form, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[7].nat}, position: gritsVAL.currPosition}
 		}
 	case 59:
 		gritsDollar = gritsS[gritspt-11 : gritspt+1]
 //line parser/parser.y:192
 		{
-			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[11].form, Type: gritsDollar[7].sessionType, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[9].integer}, position: gritsVAL.currPosition}
+			gritsVAL.common_type = unexpandedProcessOrFunction{kind: FUNCTION_DEF, function: process.FunctionDefinition{FunctionName: gritsDollar[2].strval, Parameters: gritsDollar[4].names, Body: gritsDollar[11].form, Type: gritsDollar[7].sessionType, UsesExplicitProvider: false, FaultTolerancePromise: gritsDollar[9].nat}, position: gritsVAL.currPosition}
 		}
 	case 60:
 		gritsDollar = gritsS[gritspt-10 : gritspt+1]
@@ -1071,7 +1071,7 @@ gritsdefault:
 				Body:                  gritsDollar[10].form,
 				UsesExplicitProvider:  true,
 				ExplicitProvider:      process.Name{Ident: gritsDollar[4].strval, IsSelf: true},
-				FaultTolerancePromise: gritsDollar[8].integer,
+				FaultTolerancePromise: gritsDollar[8].nat,
 				// Type: $6,
 			}, position: gritsVAL.currPosition}
 		}
@@ -1086,7 +1086,7 @@ gritsdefault:
 				UsesExplicitProvider:  true,
 				ExplicitProvider:      process.Name{Ident: gritsDollar[4].strval, IsSelf: true},
 				Type:                  gritsDollar[6].sessionType,
-				FaultTolerancePromise: gritsDollar[10].integer}, position: gritsVAL.currPosition}
+				FaultTolerancePromise: gritsDollar[10].nat}, position: gritsVAL.currPosition}
 		}
 	case 62:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]
@@ -1126,7 +1126,7 @@ gritsdefault:
 		gritsDollar = gritsS[gritspt-1 : gritspt+1]
 //line parser/parser.y:237
 		{
-			gritsVAL.sessionTypeInitial = types.NewIntTypeInitial()
+			gritsVAL.sessionTypeInitial = types.NewNatTypeInitial()
 		}
 	case 68:
 		gritsDollar = gritsS[gritspt-4 : gritspt+1]

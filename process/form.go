@@ -21,7 +21,7 @@ type Form interface {
 	Transition(*Process, *RuntimeEnvironment)
 	TransitionNP(*Process, *RuntimeEnvironment)
 	// Main typing judgement
-	typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise int, providerShadowName *Name, providerType types.SessionType, a types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError
+	typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, a types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError
 }
 
 ///////////////////////////////
@@ -498,11 +498,11 @@ func (p *SpawnForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironmen
 // let bound_var = val in continuation_e
 type LetForm struct {
 	bound_var      Name
-	val            int
+	val            uint64
 	continuation_e Form
 }
 
-func NewLet(bound_var Name, val int, continuation_e Form) *LetForm {
+func NewLet(bound_var Name, val uint64, continuation_e Form) *LetForm {
 	return &LetForm{
 		bound_var:      bound_var,
 		val:            val,
@@ -515,7 +515,7 @@ func (p *LetForm) String() string {
 	buf.WriteString("let ")
 	buf.WriteString(p.bound_var.String())
 	buf.WriteString(" = ")
-	buf.WriteString(strconv.FormatInt(int64(p.val), 10))
+	buf.WriteString(strconv.FormatUint(uint64(p.val), 10))
 	buf.WriteString(" in ")
 	buf.WriteString(p.continuation_e.String())
 	return buf.String()
@@ -526,7 +526,7 @@ func (p *LetForm) StringShort() string {
 	buf.WriteString("let ")
 	buf.WriteString(p.bound_var.String())
 	buf.WriteString(" = ")
-	buf.WriteString(strconv.FormatInt(int64(p.val), 10))
+	buf.WriteString(strconv.FormatUint(uint64(p.val), 10))
 	buf.WriteString(" in ...")
 	return buf.String()
 }
