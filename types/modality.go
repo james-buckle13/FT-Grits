@@ -29,8 +29,8 @@ type Modality interface {
 // E.g. Since Replicable > Linear, then you can downshift from Replicable to Linear (but not upshift)
 // You can upshift from Affine to Linear (since Affine > Linear)
 
-func DefaultMode() *ReplicableMode {
-	return NewReplicableMode()
+func DefaultMode() *LinearMode {
+	return NewLinearMode()
 }
 
 // Replicable => {W, C}
