@@ -312,7 +312,6 @@ func (f *NewForm) Transition(process *Process, re *RuntimeEnvironment) {
 		// Since a spawned process can only refer to itself via 'self', then we shouldn't substitute new_name_c
 		// newProcessBody.Substitute(f.new_name_c, Name{IsSelf: true, Ident: f.new_name_c.Ident, Type: innerSessionType}) // todo include polarity in name f.continuation_c.Polarity()
 		newProcess := NewProcess(newProcessBody, []Name{newChannel}, innerSessionType, LINEAR, process.Position)
-		newProcess.FaultTolerancePromise = process.FaultTolerancePromise
 
 		re.logProcessf(LOGRULEDETAILS, process, "[new] will create new infallible process with channel %s\n", newChannel.String())
 
@@ -353,7 +352,6 @@ func (f *SpawnForm) Transition(process *Process, re *RuntimeEnvironment) {
 		// Since a spawned process can only refer to itself via 'self', then we shouldn't substitute spawned_name_c
 		// newProcessBody.Substitute(f.spawned_name_c, Name{IsSelf: true, Ident: f.spawned_name_c.Ident, Type: innerSessionType}) // todo include polarity in name f.continuation_c.Polarity()
 		newProcess := NewProcess(newProcessBody, []Name{newChannel}, innerSessionType, LINEAR, process.Position)
-		newProcess.FaultTolerancePromise = process.FaultTolerancePromise
 
 		re.logProcessf(LOGRULEDETAILS, process, "[spawn] will create new fallible process with channel %s\n", newChannel.String())
 

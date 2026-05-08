@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"grits/position"
 	"grits/types"
-	"strconv"
 )
 
 // A 'Process' contains the body of the process and the channel it is providing on.
@@ -33,8 +32,7 @@ func (p *Process) OutlineString() string {
 	buf.WriteString(shapeMap[p.Shape])
 	buf.WriteString("[")
 	buf.WriteString(NamesToString(p.Providers))
-	buf.WriteString("] @ ")
-	buf.WriteString(strconv.FormatUint(uint64(p.FaultTolerancePromise), 10))
+	buf.WriteString("]")
 	return buf.String()
 }
 
@@ -67,8 +65,7 @@ func (function *FunctionDefinition) String() string {
 	buffer.WriteString(function.FunctionName)
 	buffer.WriteString("(")
 	buffer.WriteString(NamesToString(function.Parameters))
-	buffer.WriteString(") @ ")
-	buffer.WriteString(strconv.FormatUint(uint64(function.FaultTolerancePromise), 10))
+	buffer.WriteString(")")
 	return buffer.String()
 }
 
