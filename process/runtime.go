@@ -377,6 +377,8 @@ const (
 
 	LET
 
+	SYNC
+
 	// When a process is 'non-interactive', either the FWD or DUP rules take place
 	// Special rules for control messages
 	// FWD // uses Channel1 of the ControlMessage struct
@@ -404,6 +406,8 @@ var RuleString = map[Rule]string{
 	SPLIT:  "SPLIT",
 
 	LET: "LET",
+
+	SYNC: "SYNC",
 
 	DUP: "DUP",
 

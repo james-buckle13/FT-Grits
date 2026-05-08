@@ -28,6 +28,54 @@ type Form interface {
 ////// Different Forms ////////
 ///////////////////////////////
 
+// below are runtime-specific forms
+
+type SyncStateForm struct {
+	channel_one Name
+	channel_two Name
+}
+
+func NewSyncState(channel_one, channel_two Name) *SyncStateForm {
+	return &SyncStateForm{
+		channel_one: channel_one,
+		channel_two: channel_two}
+}
+
+func (p *SyncStateForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("sync{")
+	buf.WriteString(p.channel_one.String())
+	buf.WriteString(", ")
+	buf.WriteString(p.channel_two.String())
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func (p *SyncStateForm) StringShort() string {
+	return p.String()
+}
+
+func (p *SyncStateForm) Substitute(old, new Name) {
+	p.channel_one.Substitute(old, new)
+	p.channel_two.Substitute(old, new)
+}
+
+// Free names, excluding self references
+func (p *SyncStateForm) FreeNames() []Name {
+	var fn []Name
+	fn = appendIfNotSelf(p.channel_one, fn)
+	fn = appendIfNotSelf(p.channel_two, fn)
+	return fn
+}
+
+// Polarity works by performing an ast traversal until a 'self' is reached
+// Polarity of a send process can be inferred directly from itself
+func (p *SyncStateForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	return types.UNKNOWN
+}
+
+// below are the static forms
+
 // Send: send to_c<payload_c, continuation_c>
 type SendForm struct {
 	to_c           Name
@@ -1247,6 +1295,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.bridge_c.Equal(f2.bridge_c) && areChansToBeSyncedEqual(f1.channels_to_be_synced, f2.channels_to_be_synced) && EqualForm(f1.continuation_e, f2.continuation_e)
 		}
+	case *SyncStateForm:
+		f1, ok1 := form1.(*SyncStateForm)
+		f2, ok2 := form2.(*SyncStateForm)
+
+		if ok1 && ok2 {
+			return f1.channel_one.Equal(f2.channel_one) && f1.channel_two.Equal(f2.channel_two)
+		}
 	}
 
 	fmt.Printf("todo implement EqualForm for type %s\n", a)
@@ -1372,6 +1427,11 @@ func CopyForm(orig Form) Form {
 
 			return NewSync(*p.bridge_c.Copy(), channelsToBeSyncedCopy, cont)
 		}
+	case *SyncStateForm:
+		p, ok := orig.(*SyncStateForm)
+		if ok {
+			return NewSyncState(*p.channel_one.Copy(), *p.channel_two.Copy())
+		}
 	// Debug
 	case *PrintForm:
 		p, ok := orig.(*PrintForm)
@@ -1398,6 +1458,8 @@ func FormHasContinuation(form Form) bool {
 		return false
 	case *CastForm:
 		return false
+	case *SyncStateForm:
+		return false
 	default:
 		// These have a continuation:
 		// -> ReceiveForm:
@@ -1411,7 +1473,7 @@ func FormHasContinuation(form Form) bool {
 		// -> DropForm:
 		// -> SyncForm:
 		// -> PrintForm:
-		// -> LetForm
+		// -> LetForm:
 		return true
 	}
 }

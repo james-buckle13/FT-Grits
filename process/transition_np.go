@@ -629,6 +629,10 @@ func (f *SyncForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	// todo JAMES: populate transition np function for Sync
 }
 
+func (f *SyncStateForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	// todo JAMES
+}
+
 func (f *SplitForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of split: %s\n", f.String())
 

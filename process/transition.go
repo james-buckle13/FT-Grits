@@ -803,7 +803,56 @@ func (f *LetForm) Transition(process *Process, re *RuntimeEnvironment) {
 }
 
 func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES: populate transition function for Sync
+	re.logProcessf(LOGRULEDETAILS, process, "transition of sync: %s\n", f.String())
+
+	if len(f.channels_to_be_synced) != 2 {
+		re.error(process, "at runtime current implementation expects sync to have exactly 2 replicas")
+	}
+
+	for i := range f.channels_to_be_synced {
+		if f.channels_to_be_synced[i].IsSelf {
+			re.error(process, "should not sync self")
+		}
+	}
+
+	newBridgeName := re.CreateFreshChannel(f.bridge_c.Ident)
+
+	// Pass through any explicit polarities and types
+	for k := range f.channels_to_be_synced {
+		if f.channels_to_be_synced[k].ExplicitPolarity != nil {
+			pol := *f.channels_to_be_synced[k].ExplicitPolarity
+			newBridgeName.ExplicitPolarity = &pol
+		}
+	}
+
+	// types are correct since already passed type checking
+	newBridgeName.Type = types.CopyType(f.channels_to_be_synced[0].Type)
+
+	syncRule := func() {
+		re.logProcessf(LOGRULE, process, "[sync] initiating sync into %s\n", f.bridge_c.String())
+
+		currentProcessBody := f.continuation_e
+		currentProcessBody.Substitute(f.bridge_c, newBridgeName)
+		process.Body = currentProcessBody
+
+		process.finishedRule(SYNC, "[sync]", "", re)
+
+		// Create structure of new forward process
+		syncStateSessionType := types.CopyType(f.channels_to_be_synced[0].Type)
+		newProcessBody := NewSyncState(f.channels_to_be_synced[0], f.channels_to_be_synced[1])
+		newProcess := NewProcess(newProcessBody, []Name{newBridgeName}, syncStateSessionType, LINEAR, process.Position)
+		re.logProcessf(LOGRULEDETAILS, process, "[sync] will create new sync state process providing on %s\n", newBridgeName.String())
+		// Spawn and initiate new sync state process
+		newProcess.SpawnThenTransition(re)
+
+		process.transitionLoop(re)
+	}
+
+	TransitionInternally(process, syncRule, re)
+}
+
+func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
+	// todo JAMES
 }
 
 func (f *SplitForm) Transition(process *Process, re *RuntimeEnvironment) {
