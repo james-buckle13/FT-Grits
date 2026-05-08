@@ -114,6 +114,42 @@ func (p *IntSyncStateForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnv
 	return types.UNKNOWN
 }
 
+// sync_cls{channel}
+type ClsSyncStateForm struct {
+	channel Name
+}
+
+func NewClsSyncState(channel Name) *ClsSyncStateForm {
+	return &ClsSyncStateForm{
+		channel: channel}
+}
+
+func (p *ClsSyncStateForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("sync_cls{")
+	buf.WriteString(p.channel.String())
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func (p *ClsSyncStateForm) StringShort() string {
+	return p.String()
+}
+
+func (p *ClsSyncStateForm) Substitute(old, new Name) {
+	p.channel.Substitute(old, new)
+}
+
+func (p *ClsSyncStateForm) FreeNames() []Name {
+	var fn []Name
+	fn = appendIfNotSelf(p.channel, fn)
+	return fn
+}
+
+func (p *ClsSyncStateForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	return types.UNKNOWN
+}
+
 // below are the static forms
 
 // Send: send to_c<payload_c, continuation_c>
@@ -1349,6 +1385,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.channel.Equal(f2.channel) && f1.continuation_channel.Equal(f2.continuation_channel)
 		}
+	case *ClsSyncStateForm:
+		f1, ok1 := form1.(*ClsSyncStateForm)
+		f2, ok2 := form2.(*ClsSyncStateForm)
+
+		if ok1 && ok2 {
+			return f1.channel.Equal(f2.channel)
+		}
 	}
 
 	fmt.Printf("todo implement EqualForm for type %s\n", a)
@@ -1484,6 +1527,11 @@ func CopyForm(orig Form) Form {
 		if ok {
 			return NewIntSyncState(*p.channel.Copy(), *p.continuation_channel.Copy())
 		}
+	case *ClsSyncStateForm:
+		p, ok := orig.(*ClsSyncStateForm)
+		if ok {
+			return NewClsSyncState(*p.channel.Copy())
+		}
 	// Debug
 	case *PrintForm:
 		p, ok := orig.(*PrintForm)
@@ -1513,6 +1561,8 @@ func FormHasContinuation(form Form) bool {
 	case *SyncStateForm:
 		return false
 	case *IntSyncStateForm:
+		return false
+	case *ClsSyncStateForm:
 		return false
 	default:
 		// These have a continuation:

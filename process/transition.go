@@ -859,6 +859,10 @@ func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 	// todo JAMES
 }
 
+func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
+	// todo JAMES
+}
+
 func (f *SplitForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of split: %s\n", f.String())
 

@@ -1598,6 +1598,11 @@ func (p *IntSyncStateForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaN
 	return TypeErrorf("Cannot typecheck an intermediate sync state as it is a runtime construct")
 }
 
+// this is a runtime construct and so does not need type-checking
+func (p *ClsSyncStateForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+	return TypeErrorf("Cannot typecheck a close sync state as it is a runtime construct")
+}
+
 // Split: <channel_one, channel_two> <- split from_c; P
 func (p *SplitForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	globalEnv.log(LOGRULEDETAILS, "rule SPLIT")
