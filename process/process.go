@@ -34,7 +34,7 @@ func (p *Process) OutlineString() string {
 	buf.WriteString("[")
 	buf.WriteString(NamesToString(p.Providers))
 	buf.WriteString("] @ ")
-	buf.WriteString(strconv.FormatInt(int64(p.FaultTolerancePromise), 10))
+	buf.WriteString(strconv.FormatUint(uint64(p.FaultTolerancePromise), 10))
 	return buf.String()
 }
 
@@ -68,7 +68,7 @@ func (function *FunctionDefinition) String() string {
 	buffer.WriteString("(")
 	buffer.WriteString(NamesToString(function.Parameters))
 	buffer.WriteString(") @ ")
-	buffer.WriteString(strconv.FormatInt(int64(function.FaultTolerancePromise), 10))
+	buffer.WriteString(strconv.FormatUint(uint64(function.FaultTolerancePromise), 10))
 	return buffer.String()
 }
 
