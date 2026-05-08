@@ -32,7 +32,7 @@ func dev(program string) {
 	const (
 		executionVersion = process.NORMAL_ASYNC
 		typecheck        = true
-		execute          = false
+		execute          = true
 		delay            = 0 * time.Millisecond
 	)
 	var processes []*process.Process

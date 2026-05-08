@@ -306,7 +306,7 @@ func typecheckFunctionDefinitions(globalEnv *GlobalEnvironment) error {
 
 	for _, funcDef := range *globalEnv.FunctionDefinitions {
 		gammaNameTypesCtx := produceNameTypesCtx(funcDef.Parameters)
-		// todo JAMES: check what should be the contents of delta
+		// delta contents initiated as empty
 		deltaNameTypesCtx := make(NamesTypesCtx)
 
 		faultTolerancePromise := funcDef.FaultTolerancePromise
@@ -336,7 +336,7 @@ func typecheckProcesses(processes []*Process, assumedFreeNames []Name, globalEnv
 		// Obtain the free name types (to be set as Gamma)
 		freeNames := getFreeNameTypes(processes[i], processes, assumedFreeNames)
 		gammaNameTypesCtx := produceNameTypesCtx(freeNames)
-		// todo JAMES: check what should be the contents of delta
+		// delta contents initiated at empty
 		deltaNameTypesCtx := make(NamesTypesCtx)
 
 		faultTolerancePromise := processes[i].FaultTolerancePromise

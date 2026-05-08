@@ -403,6 +403,8 @@ var RuleString = map[Rule]string{
 	CALL:   "CALL",
 	SPLIT:  "SPLIT",
 
+	LET: "LET",
+
 	DUP: "DUP",
 
 	FWD:   "FWD",

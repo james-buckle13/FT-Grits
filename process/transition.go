@@ -779,7 +779,26 @@ func (f *ForwardForm) Transition(process *Process, re *RuntimeEnvironment) {
 }
 
 func (f *LetForm) Transition(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES: populate transition function for Let
+	re.logProcessf(LOGRULEDETAILS, process, "transition of let: %s\n", f.String())
+
+	letRule := func() {
+		boundChannel := re.CreateFreshChannel(f.bound_var.Ident)
+		boundChannel.Type = types.CopyType(f.bound_var.Type)
+
+		// Substitute reference to this new channel by the actual channel in the current process and new process
+		currentProcessBody := f.continuation_e
+		currentProcessBody.Substitute(f.bound_var, boundChannel)
+		process.Body = currentProcessBody
+
+		re.logProcessf(LOGRULEDETAILS, process, "[let] will create new bound channel %s\n", boundChannel.String())
+
+		process.finishedRule(LET, "[let]", "", re)
+
+		// Continue executing current process
+		process.transitionLoop(re)
+	}
+
+	TransitionInternally(process, letRule, re)
 }
 
 func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
