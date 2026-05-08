@@ -30,6 +30,8 @@ type Name struct {
 	// Channel ID is a unique id for each channel
 	// Used only for debugging, since setting the ChannelID is a slow (& synchronous) operation
 	ChannelID uint64
+
+	AssociatedValue uint64
 }
 
 func (n *Name) Initialized() bool {
@@ -277,12 +279,14 @@ func (n *Name) Substitute(old, new Name) {
 		n.Channel = new.Channel
 		n.IsSelf = new.IsSelf
 		n.ControlChannel = new.ControlChannel
+		n.AssociatedValue = new.AssociatedValue
 		// n.Type = new.Type [type should remain the same, as set by the typechecker]
 		// n.ExplicitPolarity
 		if new.Ident != "" {
 			// not sure if this works
 			n.Ident = new.Ident
 			n.ChannelID = new.ChannelID
+			n.AssociatedValue = new.AssociatedValue
 		}
 	} else if !n.Initialized() && n.Ident == old.Ident {
 		n.Ident = new.Ident
@@ -290,6 +294,7 @@ func (n *Name) Substitute(old, new Name) {
 		n.ChannelID = new.ChannelID
 		n.IsSelf = new.IsSelf
 		n.ControlChannel = new.ControlChannel
+		n.AssociatedValue = new.AssociatedValue
 		// n.Type = new.Type
 
 	}

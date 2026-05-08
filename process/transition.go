@@ -784,6 +784,7 @@ func (f *LetForm) Transition(process *Process, re *RuntimeEnvironment) {
 	letRule := func() {
 		boundChannel := re.CreateFreshChannel(f.bound_var.Ident)
 		boundChannel.Type = types.CopyType(f.bound_var.Type)
+		boundChannel.AssociatedValue = f.val
 
 		// Substitute reference to this new channel by the actual channel in the current process and new process
 		currentProcessBody := f.continuation_e
