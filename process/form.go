@@ -30,6 +30,7 @@ type Form interface {
 
 // below are runtime-specific forms
 
+// sync{channel_one, channel_two}
 type SyncStateForm struct {
 	channel_one Name
 	channel_two Name
@@ -60,7 +61,6 @@ func (p *SyncStateForm) Substitute(old, new Name) {
 	p.channel_two.Substitute(old, new)
 }
 
-// Free names, excluding self references
 func (p *SyncStateForm) FreeNames() []Name {
 	var fn []Name
 	fn = appendIfNotSelf(p.channel_one, fn)
@@ -68,9 +68,49 @@ func (p *SyncStateForm) FreeNames() []Name {
 	return fn
 }
 
-// Polarity works by performing an ast traversal until a 'self' is reached
-// Polarity of a send process can be inferred directly from itself
 func (p *SyncStateForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	return types.UNKNOWN
+}
+
+// sync_int{channel; continuation_channel}
+type IntSyncStateForm struct {
+	channel              Name
+	continuation_channel Name
+}
+
+func NewIntSyncState(channel, continuation_channel Name) *IntSyncStateForm {
+	return &IntSyncStateForm{
+		channel:              channel,
+		continuation_channel: continuation_channel}
+}
+
+func (p *IntSyncStateForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("sync_int{")
+	buf.WriteString(p.channel.String())
+	buf.WriteString("; ")
+	buf.WriteString(p.continuation_channel.String())
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func (p *IntSyncStateForm) StringShort() string {
+	return p.String()
+}
+
+func (p *IntSyncStateForm) Substitute(old, new Name) {
+	p.channel.Substitute(old, new)
+	p.continuation_channel.Substitute(old, new)
+}
+
+func (p *IntSyncStateForm) FreeNames() []Name {
+	var fn []Name
+	fn = appendIfNotSelf(p.channel, fn)
+	fn = appendIfNotSelf(p.continuation_channel, fn)
+	return fn
+}
+
+func (p *IntSyncStateForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
 	return types.UNKNOWN
 }
 
@@ -1302,6 +1342,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.channel_one.Equal(f2.channel_one) && f1.channel_two.Equal(f2.channel_two)
 		}
+	case *IntSyncStateForm:
+		f1, ok1 := form1.(*IntSyncStateForm)
+		f2, ok2 := form2.(*IntSyncStateForm)
+
+		if ok1 && ok2 {
+			return f1.channel.Equal(f2.channel) && f1.continuation_channel.Equal(f2.continuation_channel)
+		}
 	}
 
 	fmt.Printf("todo implement EqualForm for type %s\n", a)
@@ -1432,6 +1479,11 @@ func CopyForm(orig Form) Form {
 		if ok {
 			return NewSyncState(*p.channel_one.Copy(), *p.channel_two.Copy())
 		}
+	case *IntSyncStateForm:
+		p, ok := orig.(*IntSyncStateForm)
+		if ok {
+			return NewIntSyncState(*p.channel.Copy(), *p.continuation_channel.Copy())
+		}
 	// Debug
 	case *PrintForm:
 		p, ok := orig.(*PrintForm)
@@ -1459,6 +1511,8 @@ func FormHasContinuation(form Form) bool {
 	case *CastForm:
 		return false
 	case *SyncStateForm:
+		return false
+	case *IntSyncStateForm:
 		return false
 	default:
 		// These have a continuation:
