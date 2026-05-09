@@ -18,6 +18,8 @@ type RuntimeEnvironment struct {
 	// Keeps a (read only) global environment containing the function definitions and session types
 	GlobalEnvironment *GlobalEnvironment
 
+	runningProcesses map[string]*Process
+
 	// Keeps count of how many processes were spawned (only for debug info)
 	processCount uint64
 	// Keeps count of how many processes died (only for debug info)
@@ -50,6 +52,8 @@ type RuntimeEnvironment struct {
 
 	Quiet bool // Suppresses 'print' output
 	// might be useful to replace with a buffer for the output
+
+	mu sync.Mutex
 }
 
 type Execution_Version int
@@ -67,6 +71,7 @@ const (
 func NewRuntimeEnvironment() (*RuntimeEnvironment, context.Context, context.CancelFunc) {
 	re := &RuntimeEnvironment{
 		GlobalEnvironment:   nil,
+		runningProcesses:    make(map[string]*Process),
 		processCount:        0,
 		deadProcessCount:    0,
 		heartbeat:           make(chan struct{}, 1),
@@ -120,6 +125,7 @@ func InitializeProcesses(processes []*Process, globalEnv *GlobalEnvironment, sub
 		re.GlobalEnvironment.LogLevels = l
 	}
 
+	re.runningProcesses = make(map[string]*Process)
 	re.processCount = 0
 	re.deadProcessCount = 0
 	re.debugChannelCounter = 0
@@ -629,4 +635,22 @@ func (re *RuntimeEnvironment) errorf(process *Process, message string, args ...i
 
 	// fmt.Println(buffer.String())
 	panic(buffer.String())
+}
+
+func (re *RuntimeEnvironment) AddProcess(p *Process) {
+	re.mu.Lock()
+	defer re.mu.Unlock()
+
+	for _, provider := range p.Providers {
+		re.runningProcesses[provider.Ident] = p
+	}
+}
+
+func (re *RuntimeEnvironment) RemoveProcess(p *Process) {
+	re.mu.Lock()
+	defer re.mu.Unlock()
+
+	for _, provider := range p.Providers {
+		delete(re.runningProcesses, provider.Ident)
+	}
 }

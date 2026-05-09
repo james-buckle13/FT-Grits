@@ -20,6 +20,9 @@ func (process *Process) SpawnThenTransition(re *RuntimeEnvironment) {
 	// Increment ProcessCount atomically
 	atomic.AddUint64(&re.processCount, 1)
 
+	// atomically adds a process to the list of runtime processes
+	re.AddProcess(process)
+
 	if re.UseMonitor {
 		// notify monitor about new process
 		re.monitor.MonitorNewProcess(process)
@@ -114,6 +117,7 @@ func handleNegativeForwardRequest(process *Process, message Message, re *Runtime
 	// todo remove Close current channel and switch to new one
 
 	// Notify that the process will change providers (i.e. the process.Providers will die and be replaced by message.Providers)
+	// This will remove the process from the current list of processes so that it can be updated with the new names
 	process.terminateBeforeRename(process.Providers, message.Providers, re)
 
 	// the process.Providers can no longer be used, so close them
@@ -122,6 +126,9 @@ func handleNegativeForwardRequest(process *Process, message Message, re *Runtime
 
 	// Change the providers to the one being forwarded to
 	process.Providers = message.Providers
+
+	// add the process with the new names after terminateBeforeRename removes it's entry with old names
+	re.AddProcess(process)
 
 	process.transitionLoop(re)
 }
@@ -244,11 +251,15 @@ func (f *ReceiveForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(RCV, "[receive, provider]", "(p)", re)
 			// Terminate the current provider to replace them with the one being received
+			// This will remove the process from the current list of processes so that it can be updated with the new names
 			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
 
 			process.Body = new_body
 			process.Providers = []Name{message.Channel2}
 			// process.finishedRule(RCV, "[receive, provider]", "(p)", re)
+
+			// add the process with the new names after terminateBeforeRename removes it's entry with old names
+			re.AddProcess(process)
 
 			process.processRenamed(re)
 			process.transitionLoop(re)
@@ -538,11 +549,16 @@ func (f *CaseForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(BRA, "[case, provider]", "(p)", re)
 			// Terminate the current provider to replace them with the one being received
+			// This will remove the process from the current list of processes so that it can be updated with the new names
 			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
 
 			process.Body = new_body
 			process.Providers = []Name{message.Channel1}
 			// process.finishedRule(BRA, "[receive, provider]", "(p)", re)
+
+			// add the process with the new names after terminateBeforeRename removes it's entry with old names
+			re.AddProcess(process)
+
 			process.processRenamed(re)
 
 			process.transitionLoop(re)
@@ -1070,10 +1086,15 @@ func (f *ShiftForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(SHF, "[shift, provider]", "(p)", re)
 			// Terminate the current provider to replace them with the one being received
+			// This will remove the process from the current list of processes so that it can be updated with the new names
 			process.terminateBeforeRename(process.Providers, []Name{message.Channel1}, re)
 
 			process.Body = new_body
 			process.Providers = []Name{message.Channel1}
+
+			// add the process with the new names after terminateBeforeRename removes it's entry with old names
+			re.AddProcess(process)
+
 			process.processRenamed(re)
 
 			process.transitionLoop(re)
@@ -1171,6 +1192,7 @@ func (process *Process) terminate(re *RuntimeEnvironment) {
 
 	// Update dead process count. Ignore if timing processes
 	atomic.AddUint64(&re.deadProcessCount, 1)
+	re.RemoveProcess(process)
 }
 
 // A forward process will terminate, but its providers will be used by other processes being forwarded
@@ -1218,6 +1240,7 @@ func (process *Process) terminateBeforeRename(oldProviders, newProviders []Name,
 
 	// Update dead process count
 	atomic.AddUint64(&re.deadProcessCount, 1)
+	re.RemoveProcess(process)
 }
 
 func (process *Process) renamed(oldProviders, newProviders []Name, re *RuntimeEnvironment) {
