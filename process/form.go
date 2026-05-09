@@ -1192,8 +1192,8 @@ func (p *SyncForm) StringShort() string {
 }
 
 func (p *SyncForm) Substitute(old, new Name) {
-	for _, fallibleChan := range p.channels_to_be_synced {
-		fallibleChan.Substitute(old, new)
+	for i := range p.channels_to_be_synced {
+		p.channels_to_be_synced[i].Substitute(old, new)
 	}
 
 	if !p.bridge_c.Equal(old) {
