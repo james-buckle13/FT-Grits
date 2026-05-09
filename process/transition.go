@@ -910,12 +910,28 @@ func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
 func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of sync state: %s\n", f.String())
 
-	re.mu.Lock()
-	firstChannel, exists := re.runningProcesses[f.channel_one.Ident]
-	re.mu.Unlock()
+	var firstChannel *Process
+	var exists bool
+
+	retries := 20
+
+	// attempt to find the partnering proc a few times before giving up
+	for i := 0; i < retries; i++ {
+		re.mu.Lock()
+		firstChannel, exists = re.runningProcesses[f.channel_one.Ident]
+		re.mu.Unlock()
+
+		if exists {
+			break
+		}
+
+		// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
+		sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
+		time.Sleep(sleepTime)
+	}
 
 	if !exists {
-		re.errorf(process, "Channel %s not found", f.channel_one.Ident)
+		re.errorf(process, "Channel %s not found after %d retries. The replica likely failed to register.", f.channel_one.Ident, retries)
 		return
 	}
 
