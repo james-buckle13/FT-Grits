@@ -384,6 +384,7 @@ const (
 	LET
 
 	SYNC
+	SNDTOSYNCED
 
 	// When a process is 'non-interactive', either the FWD or DUP rules take place
 	// Special rules for control messages
@@ -414,6 +415,8 @@ var RuleString = map[Rule]string{
 	LET: "LET",
 
 	SYNC: "SYNC",
+
+	SNDTOSYNCED: "SNDTOSYNCED",
 
 	DUP: "DUP",
 

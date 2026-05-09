@@ -197,32 +197,64 @@ func (f *SendForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 		TransitionBySending(process, process.Providers[0].Channel, sndRule, message, re)
 	} else {
-		// RCV rule (client, -ve)
-		//
-		// [send to_c <payload_c, self>]
-		//    |
-		//    |
-		//   \|/
-		// <...> <- recv self; ...
+		recipientForm := re.runningProcesses[f.to_c.Ident].Body
 
-		if !f.continuation_c.IsSelf {
-			// todo error
-			re.errorf(process, "[send, client] in RCV rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
+		// checks form of recipient to determine which reduction rule to perform
+		if _, ok := recipientForm.(*SyncStateForm); ok {
+			// SNDTOSYNCED rule
+			//
+			// [send to_c <payload_c, self>]
+			//    |
+			//    |
+			//   \|/
+			// sync{...}
+
+			if !f.continuation_c.IsSelf {
+				re.errorf(process, "[send, client] in SNDTOSYNCED rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
+			}
+
+			message := Message{Rule: SNDTOSYNCED, Channel1: f.payload_c, Channel2: process.Providers[0]}
+			// Send the provider channel (self) as the continuation channel
+
+			sndToSyncedRule := func() {
+				// Message is the received message
+				re.logProcess(LOGRULE, process, "[send, client] starting SNDTOSYNCED rule")
+				re.logProcessf(LOGRULEDETAILS, process, "Received message on channel %s, containing message rule SNDTOSYNCED\n", f.to_c.String())
+
+				// Although the process dies, its provider will be used as the client's provider
+				process.renamed(process.Providers, []Name{f.to_c}, re)
+			}
+
+			TransitionBySending(process, f.to_c.Channel, sndToSyncedRule, message, re)
+		} else {
+
+			// RCV rule (client, -ve)
+			//
+			// [send to_c <payload_c, self>]
+			//    |
+			//    |
+			//   \|/
+			// <...> <- recv self; ...
+
+			if !f.continuation_c.IsSelf {
+				// todo error
+				re.errorf(process, "[send, client] in RCV rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
+			}
+
+			message := Message{Rule: RCV, Channel1: f.payload_c, Channel2: process.Providers[0]}
+			// Send the provider channel (self) as the continuation channel
+
+			rcvRule := func() {
+				// Message is the received message
+				re.logProcess(LOGRULE, process, "[send, client] starting RCV rule")
+				re.logProcessf(LOGRULEDETAILS, process, "Received message on channel %s, containing message rule RCV\n", f.to_c.String())
+
+				// Although the process dies, its provider will be used as the client's provider
+				process.renamed(process.Providers, []Name{f.to_c}, re)
+			}
+
+			TransitionBySending(process, f.to_c.Channel, rcvRule, message, re)
 		}
-
-		message := Message{Rule: RCV, Channel1: f.payload_c, Channel2: process.Providers[0]}
-		// Send the provider channel (self) as the continuation channel
-
-		rcvRule := func() {
-			// Message is the received message
-			re.logProcess(LOGRULE, process, "[send, client] starting RCV rule")
-			re.logProcessf(LOGRULEDETAILS, process, "Received message on channel %s, containing message rule RCV\n", f.to_c.String())
-
-			// Although the process dies, its provider will be used as the client's provider
-			process.renamed(process.Providers, []Name{f.to_c}, re)
-		}
-
-		TransitionBySending(process, f.to_c.Channel, rcvRule, message, re)
 	}
 }
 
@@ -868,7 +900,59 @@ func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
 }
 
 func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES
+	re.logProcessf(LOGRULEDETAILS, process, "transition of sync state: %s\n", f.String())
+
+	firstChannelForm := re.runningProcesses[f.channel_one.Ident].Body
+
+	if _, ok := firstChannelForm.(*SendForm); ok { // RCVFROMSYNCED as replicas are sending
+
+	} else { // otherwise, replicas are not sending and only other valid case is SNDTOSYNCED i.e. sending to replicas
+		sndToSyncedRule := func(message Message) {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished SNDTOSYNCED")
+
+			if message.Rule != SNDTOSYNCED {
+				re.errorf(process, "expected SNDTOSYNCED, found %s\n", RuleString[message.Rule])
+			}
+
+			newSendOne := re.CreateFreshChannel(process.Providers[0].Ident + "1")
+			newSendTwo := re.CreateFreshChannel(process.Providers[0].Ident + "2")
+
+			// new sends take the type of the sending parent
+			newSendOne.Type = types.CopyType(re.runningProcesses[message.Channel2.Ident].Type)
+			newSendTwo.Type = types.CopyType(re.runningProcesses[message.Channel2.Ident].Type)
+
+			sendSessionType := types.CopyType(re.runningProcesses[message.Channel2.Ident].Type)
+
+			newSendOneBody := NewSend(f.channel_one, message.Channel1, NewSelf(newSendOne.Ident))
+			newSendTwoBody := NewSend(f.channel_two, message.Channel1, NewSelf(newSendTwo.Ident))
+
+			newSendOneProcess := NewProcess(newSendOneBody, []Name{newSendOne}, sendSessionType, LINEAR, process.Position)
+			newSendTwoProcess := NewProcess(newSendTwoBody, []Name{newSendTwo}, sendSessionType, LINEAR, process.Position)
+
+			new_body := NewSyncState(newSendOne, newSendTwo)
+
+			// Terminate the current provider to replace them with the one being received
+			// This will remove the process from the current list of processes so that it can be updated with the new names
+			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
+
+			process.Body = new_body
+			process.Providers = []Name{message.Channel2}
+
+			// add the process with the new names after terminateBeforeRename removes it's entry with old names
+			re.AddProcess(process)
+
+			process.processRenamed(re)
+
+			newSendOneProcess.SpawnThenTransition(re)
+			newSendTwoProcess.SpawnThenTransition(re)
+
+			process.finishedRule(SNDTOSYNCED, "[receive, intermediate]", "", re)
+
+			process.transitionLoop(re)
+		}
+
+		TransitionByReceiving(process, process.Providers[0].Channel, sndToSyncedRule, re)
+	}
 }
 
 func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
