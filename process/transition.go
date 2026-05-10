@@ -954,7 +954,35 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	firstChannelForm := firstChannel.Body
 
 	if _, ok := firstChannelForm.(*SendForm); ok { // RCVFROMSYNCED as replicas are sending
+		rcvFromSyncedRule := func(message Message) {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving from replica")
 
+			// expecting a SND since when the to channel in send is self, there is no way to identify the form of the recipient
+			// like this, either SyncState or Receive will receive the payload, depending on whether we have sync{a1, a2} or recv a1
+			// we can be rest assured that the typing rules have handled the program's correctness
+			if message.Rule != SND {
+				re.errorf(process, "expected SND to then perform RCVFROMSYNCED, found %s\n", RuleString[message.Rule])
+			}
+
+			intermediateSyncState := re.CreateFreshChannel(process.Providers[0].Ident + "_int")
+			intermediateSyncState.Type = types.CopyType(process.Providers[0].Type)
+			intermediateSyncStateSessionType := types.CopyType(process.Providers[0].Type)
+
+			intSyncStateBody := NewIntSyncState(f.channel_two, message.Channel2)
+			intSyncStateProcess := NewProcess(intSyncStateBody, []Name{intermediateSyncState}, intermediateSyncStateSessionType, LINEAR, process.Position)
+
+			new_body := NewSend(process.Providers[0], message.Channel1, intermediateSyncState)
+
+			process.Body = new_body
+
+			intSyncStateProcess.SpawnThenTransition(re)
+
+			process.finishedRule(RCVFROMSYNCED, "[receive, intermediate]", "", re)
+			process.transitionLoop(re)
+		}
+
+		// since we receive from the first replica, the channel carrying the message is the channel of the first replica. This is equivalent to the from channel in recv see SND reduction rule
+		TransitionByReceiving(process, f.channel_one.Channel, rcvFromSyncedRule, re)
 	} else { // otherwise, replicas are not sending and only other valid case is SNDTOSYNCED i.e. sending to replicas
 		sndToSyncedRule := func(message Message) {
 			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving from parent")

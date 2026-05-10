@@ -385,6 +385,7 @@ const (
 
 	SYNC
 	SNDTOSYNCED
+	RCVFROMSYNCED
 
 	// When a process is 'non-interactive', either the FWD or DUP rules take place
 	// Special rules for control messages
@@ -416,7 +417,8 @@ var RuleString = map[Rule]string{
 
 	SYNC: "SYNC",
 
-	SNDTOSYNCED: "SNDTOSYNCED",
+	SNDTOSYNCED:   "SNDTOSYNCED",
+	RCVFROMSYNCED: "RCVFROMSYNCED",
 
 	DUP: "DUP",
 
