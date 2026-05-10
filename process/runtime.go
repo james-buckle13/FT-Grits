@@ -18,7 +18,7 @@ type RuntimeEnvironment struct {
 	// Keeps a (read only) global environment containing the function definitions and session types
 	GlobalEnvironment *GlobalEnvironment
 
-	runningProcesses map[string]*Process
+	RunningProcesses map[string]*Process
 
 	// Keeps count of how many processes were spawned (only for debug info)
 	processCount uint64
@@ -71,7 +71,7 @@ const (
 func NewRuntimeEnvironment() (*RuntimeEnvironment, context.Context, context.CancelFunc) {
 	re := &RuntimeEnvironment{
 		GlobalEnvironment:   nil,
-		runningProcesses:    make(map[string]*Process),
+		RunningProcesses:    make(map[string]*Process),
 		processCount:        0,
 		deadProcessCount:    0,
 		heartbeat:           make(chan struct{}, 1),
@@ -125,7 +125,7 @@ func InitializeProcesses(processes []*Process, globalEnv *GlobalEnvironment, sub
 		re.GlobalEnvironment.LogLevels = l
 	}
 
-	re.runningProcesses = make(map[string]*Process)
+	re.RunningProcesses = make(map[string]*Process)
 	re.processCount = 0
 	re.deadProcessCount = 0
 	re.debugChannelCounter = 0
@@ -387,6 +387,8 @@ const (
 	SNDTOSYNCED
 	RCVFROMSYNCED
 	IGNORE
+	CLSSYNCED1
+	CLSSYNCED2
 
 	// When a process is 'non-interactive', either the FWD or DUP rules take place
 	// Special rules for control messages
@@ -420,6 +422,8 @@ var RuleString = map[Rule]string{
 	SNDTOSYNCED:   "SNDTOSYNCED",
 	RCVFROMSYNCED: "RCVFROMSYNCED",
 	IGNORE:        "IGNORE",
+	CLSSYNCED1:    "CLSSYNCED1",
+	CLSSYNCED2:    "CLSSYNCED2",
 
 	DUP: "DUP",
 
@@ -648,7 +652,7 @@ func (re *RuntimeEnvironment) AddProcess(p *Process) {
 	defer re.mu.Unlock()
 
 	for _, provider := range p.Providers {
-		re.runningProcesses[provider.Ident] = p
+		re.RunningProcesses[provider.Ident] = p
 	}
 }
 
@@ -657,6 +661,6 @@ func (re *RuntimeEnvironment) RemoveProcess(p *Process) {
 	defer re.mu.Unlock()
 
 	for _, provider := range p.Providers {
-		delete(re.runningProcesses, provider.Ident)
+		delete(re.RunningProcesses, provider.Ident)
 	}
 }

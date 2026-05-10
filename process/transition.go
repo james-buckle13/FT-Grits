@@ -202,7 +202,7 @@ func (f *SendForm) Transition(process *Process, re *RuntimeEnvironment) {
 		// attempt to find the partnering proc a few times before giving up
 		for i := 0; i < retries; i++ {
 			re.mu.Lock()
-			foundProcess, exists := re.runningProcesses[f.to_c.Ident]
+			foundProcess, exists := re.RunningProcesses[f.to_c.Ident]
 
 			if exists {
 				tempBody := foundProcess.Body
@@ -350,7 +350,7 @@ func (f *ReceiveForm) Transition(process *Process, re *RuntimeEnvironment) {
 		// no need for ready logic since we don't care about the form
 		for i := 0; i < retries; i++ {
 			re.mu.Lock()
-			fromChannel, exists = re.runningProcesses[f.from_c.Ident]
+			fromChannel, exists = re.RunningProcesses[f.from_c.Ident]
 			re.mu.Unlock()
 
 			if exists {
@@ -715,8 +715,6 @@ func (f *CloseForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 		clsRule := func() {
 			re.logProcess(LOGRULEDETAILS, process, "[close, provider] finished sending on self")
-			// the rule CLS is not guaranteed to be done, since it depends on the other side as well
-			process.terminate(re)
 		}
 
 		TransitionBySending(process, process.Providers[0].Channel, clsRule, message, re)
@@ -732,12 +730,40 @@ func (f *WaitForm) Transition(process *Process, re *RuntimeEnvironment) {
 		re.error(process, "Found a wait on self. Wait should only wait for other channels.")
 	}
 
+	var channelToWaitOn *Process
+	var exists bool
+
+	retries := 20
+
+	// attempt to find the partnering proc a few times before giving up
+	// no need for ready logic since we don't care about the form
+	for i := 0; i < retries; i++ {
+		re.mu.Lock()
+		channelToWaitOn, exists = re.RunningProcesses[f.to_c.Ident]
+		re.mu.Unlock()
+
+		if exists {
+			break
+		}
+
+		// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
+		sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
+		time.Sleep(sleepTime)
+	}
+
+	if !exists {
+		re.errorf(process, "Channel %s not found after %d retries. The sender likely failed to register.", f.to_c.Ident, retries)
+		return
+	}
+
 	clsRule := func(message Message) {
 		// CLS rule (client)
 		// wait to_c; ...
 
 		re.logProcess(LOGRULE, process, "[wait, client] starting CLS rule")
 		re.logProcessf(LOGRULEDETAILS, process, "[wait, client] Received message on channel %s, containing rule: %s\n", f.to_c.String(), RuleString[message.Rule])
+
+		channelToWaitOn.terminate(re)
 
 		if message.Rule != CLS {
 			re.error(process, "expected CLS")
@@ -973,13 +999,13 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	// attempt to find the partnering proc a few times before giving up
 	for i := 0; i < retries; i++ {
 		re.mu.Lock()
-		foundProcess, exists := re.runningProcesses[f.channel_one.Ident]
+		foundProcess, exists := re.RunningProcesses[f.channel_one.Ident]
 
 		if exists {
 			tempBody := foundProcess.Body
 
 			switch tempBody.(type) {
-			case *SendForm, *ReceiveForm:
+			case *SendForm, *ReceiveForm, *CloseForm:
 				firstChannel = foundProcess
 				ready = true
 			default:
@@ -1038,7 +1064,7 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 		// since we receive from the first replica, the channel carrying the message is the channel of the first replica. This is equivalent to the from channel in recv see SND reduction rule
 		TransitionByReceiving(process, f.channel_one.Channel, rcvFromSyncedRule, re)
-	} else { // otherwise, replicas are not sending and only other valid case is SNDTOSYNCED i.e. sending to replicas i.e. replicas receiving
+	} else if _, ok := firstChannelForm.(*ReceiveForm); ok { // replicas are not sending and only other valid case is SNDTOSYNCED i.e. sending to replicas i.e. replicas receiving
 		sndToSyncedRule := func(message Message) {
 			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving from parent")
 
@@ -1058,7 +1084,7 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 			// no need for ready logic since we don't care about the form
 			for i := 0; i < retries; i++ {
 				re.mu.Lock()
-				receivedContinuationChannel, exists = re.runningProcesses[message.Channel2.Ident]
+				receivedContinuationChannel, exists = re.RunningProcesses[message.Channel2.Ident]
 				re.mu.Unlock()
 
 				if exists {
@@ -1112,6 +1138,29 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 		}
 
 		TransitionByReceiving(process, process.Providers[0].Channel, sndToSyncedRule, re)
+	} else { // replicas are closing i.e. CLSSYNCED1
+		clsSyyncedOneRule := func(message Message) {
+			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED1 rule")
+
+			// terminate sender
+			firstChannel.terminate(re)
+
+			// expecting a CLS since there is no way to identify the form of the recipient of the close
+			// we can be rest assured that the typing rules have handled the program's correctness
+			if message.Rule != CLS {
+				re.errorf(process, "expected CLS to then perform CLSSYNCED1, found %s\n", RuleString[message.Rule])
+			}
+
+			clsSyncStateBody := NewClsSyncState(f.channel_two)
+
+			process.Body = clsSyncStateBody
+
+			process.finishedRule(CLSSYNCED1, "[wait, intermediate]", "", re)
+			process.transitionLoop(re)
+		}
+
+		// since we receive from the first replica, the channel carrying the message is the channel of the first replica
+		TransitionByReceiving(process, f.channel_one.Channel, clsSyyncedOneRule, re)
 	}
 }
 
@@ -1127,7 +1176,7 @@ func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 	// no need for ready logic since we don't care about the form
 	for i := 0; i < retries; i++ {
 		re.mu.Lock()
-		channel, exists = re.runningProcesses[f.channel.Ident]
+		channel, exists = re.RunningProcesses[f.channel.Ident]
 		re.mu.Unlock()
 
 		if exists {
@@ -1169,7 +1218,55 @@ func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 }
 
 func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES
+	re.logProcessf(LOGRULEDETAILS, process, "transition of close sync state: %s\n", f.String())
+
+	var channel *Process
+	var exists bool
+
+	retries := 20
+
+	// attempt to find the partnering proc a few times before giving up
+	// no need for ready logic since we don't care about the form
+	for i := 0; i < retries; i++ {
+		re.mu.Lock()
+		channel, exists = re.RunningProcesses[f.channel.Ident]
+		re.mu.Unlock()
+
+		if exists {
+			break
+		}
+
+		// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
+		sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
+		time.Sleep(sleepTime)
+	}
+
+	if !exists {
+		re.errorf(process, "Channel %s not found after %d retries. The replica likely failed to register.", f.channel.Ident, retries)
+		return
+	}
+
+	clsSyncedTwoRule := func(message Message) {
+		re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED2 rule")
+
+		// terminate sender
+		channel.terminate(re)
+
+		// expecting a CLS since there is no way to identify the form of the recipient of the close
+		// we can be rest assured that the typing rules have handled the program's correctness
+		if message.Rule != CLS {
+			re.errorf(process, "expected CLS to then perform CLSSYNCED2, found %s\n", RuleString[message.Rule])
+		}
+
+		new_body := NewClose(NewSelf(process.Providers[0].Ident))
+
+		process.Body = new_body
+
+		process.finishedRule(CLSSYNCED2, "[wait, intermediate]", "", re)
+		process.transitionLoop(re)
+	}
+
+	TransitionByReceiving(process, f.channel.Channel, clsSyncedTwoRule, re)
 }
 
 func (f *SplitForm) Transition(process *Process, re *RuntimeEnvironment) {

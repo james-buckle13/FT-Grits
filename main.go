@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"grits/cmd"
 	"grits/parser"
 	"grits/process"
@@ -21,13 +22,20 @@ func main() {
 			// prc[a] : nat * 1 @ 1 = w <- new (new_body()); <z, w'> <- recv w; wait w'; term: 1 <-new close self; send self <z, term>
 			// prc[a] : nat * 1 @ 7 = term:1 <- new close self; let x = 5 in send self <x, term>
 
-			// to test SNDTOSYNCED
-			def body() : nat -* (nat * 1) @ 0 = <x, y> <- recv self; term:1 <- new close self; send y <x, term>
-			prc[q] : nat * 1 @ 1 = a <- spawn (body()); b <- spawn (body()); y <- sync <a, b>; let x = 5 in send y <x, self>
+			// to test SNDTOSYNCED, also tests RCVFROMSYNCED and IGNORE
+			// def body() : nat -* (nat * 1) @ 0 = <x, y> <- recv self; term:1 <- new close self; send y <x, term>
+			// prc[q] : nat * 1 @ 1 = a <- spawn (body()); b <- spawn (body()); y <- sync <a, b>; let x = 5 in send y <x, self>
 
 			// to test RCVFROMSYNCED and IGNORE
 			// def body() : nat * 1 @ 0 = term:1 <- new close self;  let x = 5 in send self <x, term>
 			// prc[q] : nat * 1 @ 1 = a <- spawn (body()); b <- spawn (body()); y <- sync <a, b>; <x, t> <- recv y; send self <x, t>
+
+			// to test CLSSYNCED1 and CLSSYNCED2
+			// N.B. term and prc[q] will me marked as live processes by the end of the running, since they have no receiving client
+			def body_1() : nat -* (nat * 1) @ 0 = c1:1 <- new close self; <x1, y> <- recv self; send y <x1, c1>
+			def body_2() : nat -* (nat * 1) @ 0 = c2:1 <- new close self; <x2, y> <- recv self; send y <x2, c2>
+			def send_to_repl(x : nat -* (nat * 1)): nat * 1 @ 1 = let v = 5 in send x <v, self>
+			prc[q] : nat * 1 @ 1 = a <- spawn (body_1()); b <- spawn (body_2()); y <- sync <a, b>; z <- new send_to_repl(y); <x, t> <- recv z; wait t; term:1 <- new close self; send self <x, term>
 			`
 		dev(p)
 	} else {
@@ -79,5 +87,10 @@ func dev(program string) {
 		re.Delay = delay
 
 		process.InitializeProcesses(processes, nil, nil, re)
+
+		// print out final map of running processes for debugging
+		for key, value := range re.RunningProcesses {
+			fmt.Printf("Key: %s | Value: %s\n", key, value.Providers[0].Ident)
+		}
 	}
 }
