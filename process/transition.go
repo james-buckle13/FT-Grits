@@ -955,7 +955,7 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 	if _, ok := firstChannelForm.(*SendForm); ok { // RCVFROMSYNCED as replicas are sending
 		rcvFromSyncedRule := func(message Message) {
-			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving from replica")
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting RCVFROMSYNCED rule")
 
 			// expecting a SND since when the to channel in send is self, there is no way to identify the form of the recipient
 			// like this, either SyncState or Receive will receive the payload, depending on whether we have sync{a1, a2} or recv a1
@@ -1060,7 +1060,27 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 }
 
 func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES
+	re.logProcessf(LOGRULEDETAILS, process, "transition of intermediate sync state: %s\n", f.String())
+
+	ignoreRule := func(message Message) {
+		re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting IGNORE rule")
+
+		// expecting a SND since when the to channel in send is self, there is no way to identify the form of the recipient
+		// like this, either SyncState or Receive will receive the payload, depending on whether we have sync{a1, a2} or recv a1
+		// we can be rest assured that the typing rules have handled the program's correctness
+		if message.Rule != SND {
+			re.errorf(process, "expected SND to then perform IGNORE, found %s\n", RuleString[message.Rule])
+		}
+
+		new_body := NewSyncState(f.continuation_channel, message.Channel2)
+
+		process.Body = new_body
+
+		process.finishedRule(IGNORE, "[receive, intermediate]", "", re)
+		process.transitionLoop(re)
+	}
+
+	TransitionByReceiving(process, f.channel.Channel, ignoreRule, re)
 }
 
 func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
