@@ -197,12 +197,28 @@ func (f *SendForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 		TransitionBySending(process, process.Providers[0].Channel, sndRule, message, re)
 	} else {
-		re.mu.Lock()
-		recipient, exists := re.runningProcesses[f.to_c.Ident]
-		re.mu.Unlock()
+		var recipient *Process
+		var exists bool
+
+		retries := 20
+
+		// attempt to find the partnering proc a few times before giving up
+		for i := 0; i < retries; i++ {
+			re.mu.Lock()
+			recipient, exists = re.runningProcesses[f.to_c.Ident]
+			re.mu.Unlock()
+
+			if exists {
+				break
+			}
+
+			// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
+			sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
+			time.Sleep(sleepTime)
+		}
 
 		if !exists {
-			re.errorf(process, "Recipient %s not found", f.to_c.Ident)
+			re.errorf(process, "Recipient %s not found after %d retries. The recipient likely failed to register.", f.to_c.Ident, retries)
 			return
 		}
 
@@ -950,12 +966,28 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 			newSendOne := re.CreateFreshChannel(process.Providers[0].Ident + "1")
 			newSendTwo := re.CreateFreshChannel(process.Providers[0].Ident + "2")
 
-			re.mu.Lock()
-			receivedContinuationChannel, exists := re.runningProcesses[message.Channel2.Ident]
-			re.mu.Unlock()
+			var receivedContinuationChannel *Process
+			var exists bool
+
+			retries := 20
+
+			// attempt to find the partnering proc a few times before giving up
+			for i := 0; i < retries; i++ {
+				re.mu.Lock()
+				receivedContinuationChannel, exists = re.runningProcesses[message.Channel2.Ident]
+				re.mu.Unlock()
+
+				if exists {
+					break
+				}
+
+				// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
+				sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
+				time.Sleep(sleepTime)
+			}
 
 			if !exists {
-				re.errorf(process, "Channel %s not found", message.Channel2.Ident)
+				re.errorf(process, "Channel %s not found after %d retries. The channel likely failed to register", message.Channel2.Ident, retries)
 				return
 			}
 
