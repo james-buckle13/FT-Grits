@@ -13,12 +13,6 @@
 The full grammar accepted by our compiler is as follows:
 
 ```text
-\chapter{Updated Grammar}
-\label{app:grammar}
-
-Listing \ref{lst:updated_grammar} shows the \GRITS grammar updated to include the syntax for the fault tolerance promise in addition to the new \texttt{spawn} and \texttt{sync} constructs. 
-
-\begin{lstlisting}[language={}, caption=Updated grammar.,label={lst:updated_grammar}, numbers=none]
 <prog> ::= <statement>*
 
 <statement> ::= type <label> = <type>                           
@@ -83,5 +77,4 @@ Others:
     // Single line comments
     /* Multi line comments */
     whitespace is ignored
-\end{lstlisting}
 ```
