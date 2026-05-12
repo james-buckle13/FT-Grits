@@ -32,7 +32,7 @@ func main() {
 			// prc[q] : nat * 1 @ 1 = a <- spawn (body_1()); b <- spawn (body_2()); y <- sync <a, b>; <x, t> <- recv y; send self <x, t>
 
 			// to test CLSSYNCED1 and CLSSYNCED2
-			N.B. term and prc[q] will me marked as live processes by the end of the running, since they have no receiving client
+			// N.B. term and prc[q] will me marked as live processes by the end of the running, since they have no receiving client
 			def body_1() : nat -* (nat * 1) @ 0 = c1:1 <- new close self; <x1, y> <- recv self; send y <x1, c1>
 			def body_2() : nat -* (nat * 1) @ 0 = c2:1 <- new close self; <x2, y> <- recv self; send y <x2, c2>
 			def send_to_repl(x : nat -* (nat * 1)): nat * 1 @ 1 = let v = 5 in send x <v, self>
