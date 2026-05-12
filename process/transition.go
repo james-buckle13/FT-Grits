@@ -20,9 +20,6 @@ func (process *Process) SpawnThenTransition(re *RuntimeEnvironment) {
 	// Increment ProcessCount atomically
 	atomic.AddUint64(&re.processCount, 1)
 
-	// atomically adds a process to the list of runtime processes
-	re.AddProcess(process)
-
 	if re.UseMonitor {
 		// notify monitor about new process
 		re.monitor.MonitorNewProcess(process)
@@ -95,6 +92,50 @@ func TransitionByReceiving(process *Process, clientChan chan Message, processMes
 	}
 }
 
+// this is to be used by the SyncState transition
+func TransitionBySelect(process *Process, clientChan1, clientChan2 chan Message, processMessageFunc func(Message), re *RuntimeEnvironment) {
+	if clientChan1 == nil {
+		re.error(process, "Channel not initialized (attempting to receive on a dead channel)")
+	}
+
+	if clientChan2 == nil {
+		re.error(process, "Channel not initialized (attempting to receive on a dead channel)")
+	}
+
+	if len(process.Providers) > 1 {
+		// Split process if needed
+		process.performDUPrule(re)
+	} else {
+		select {
+		case <-re.ctx.Done():
+			// Received cancellation request, then stop
+			return
+		case receivedMessage := <-clientChan1:
+			// Blocks until a message arrives (may be a FWD request)
+
+			// Process acting as a client by consuming a message from some channel
+			if receivedMessage.Rule == FWD {
+				handleNegativeForwardRequest(process, receivedMessage, re)
+			} else if receivedMessage.Rule == GC {
+				handleNegativeDropRequest(process, re)
+			} else {
+				processMessageFunc(receivedMessage)
+			}
+		case receivedMessage := <-clientChan2:
+			// Blocks until a message arrives (may be a FWD request)
+
+			// Process acting as a client by consuming a message from some channel
+			if receivedMessage.Rule == FWD {
+				handleNegativeForwardRequest(process, receivedMessage, re)
+			} else if receivedMessage.Rule == GC {
+				handleNegativeDropRequest(process, re)
+			} else {
+				processMessageFunc(receivedMessage)
+			}
+		}
+	}
+}
+
 func TransitionInternally(process *Process, internalTransition func(), re *RuntimeEnvironment) {
 	select {
 	case <-re.ctx.Done():
@@ -126,9 +167,6 @@ func handleNegativeForwardRequest(process *Process, message Message, re *Runtime
 
 	// Change the providers to the one being forwarded to
 	process.Providers = message.Providers
-
-	// add the process with the new names after terminateBeforeRename removes it's entry with old names
-	re.AddProcess(process)
 
 	process.transitionLoop(re)
 }
@@ -190,105 +228,48 @@ func (f *SendForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 		sndRule := func() {
 			re.logProcess(LOGRULEDETAILS, process, "[send, provider] finished sending on self")
+
+			// todo Although here we say the process finished executing (and died),
+			// the rule SND is not guaranteed to be done, since it depends on the other side as well
+			process.terminate(re)
 		}
 
 		TransitionBySending(process, process.Providers[0].Channel, sndRule, message, re)
 	} else {
-		var recipient *Process
-		var ready bool
+		// RCV rule (client, -ve)
+		//
+		// [send to_c <payload_c, self>]
+		//    |
+		//    |
+		//   \|/
+		// <...> <- recv self; ...
+		// OR
+		// SNDTOSYNCED rule
+		//
+		// [send to_c <payload_c, self>]
+		//    |
+		//    |
+		//   \|/
+		// sync{...}
 
-		retries := 20
-
-		// attempt to find the partnering proc a few times before giving up
-		for i := 0; i < retries; i++ {
-			re.mu.Lock()
-			foundProcess, exists := re.RunningProcesses[f.to_c.Ident]
-
-			if exists {
-				tempBody := foundProcess.Body
-
-				switch tempBody.(type) {
-				case *SyncStateForm, *ReceiveForm:
-					recipient = foundProcess
-					ready = true
-				default:
-					// wait for process to transition to desired form
-				}
-			}
-
-			re.mu.Unlock()
-
-			if ready {
-				break
-			}
-
-			// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
-			sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
-			time.Sleep(sleepTime)
+		if !f.continuation_c.IsSelf {
+			// todo error
+			re.errorf(process, "[send, client] in RCV rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
 		}
 
-		if !ready {
-			re.errorf(process, "Recipient %s never reached a stable after %d retries.", f.to_c.Ident, retries)
-			return
+		message := Message{Rule: RCV, Channel1: f.payload_c, Channel2: process.Providers[0]}
+		// Send the provider channel (self) as the continuation channel
+
+		rcvRule := func() {
+			// Message is the received message
+			re.logProcess(LOGRULE, process, "[send, client] starting RCV rule")
+			re.logProcessf(LOGRULEDETAILS, process, "Received message on channel %s, containing message rule RCV\n", f.to_c.String())
+
+			// Although the process dies, its provider will be used as the client's provider
+			// process.renamed(process.Providers, []Name{f.to_c}, re)
 		}
 
-		recipientForm := recipient.Body
-
-		// checks form of recipient to determine which reduction rule to perform
-		if _, ok := recipientForm.(*SyncStateForm); ok {
-			// SNDTOSYNCED rule
-			//
-			// [send to_c <payload_c, self>]
-			//    |
-			//    |
-			//   \|/
-			// sync{...}
-
-			if !f.continuation_c.IsSelf {
-				re.errorf(process, "[send, client] in SNDTOSYNCED rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
-			}
-
-			message := Message{Rule: SNDTOSYNCED, Channel1: f.payload_c, Channel2: process.Providers[0]}
-			// Send the provider channel (self) as the continuation channel
-
-			sndToSyncedRule := func() {
-				// Message is the received message
-				re.logProcess(LOGRULE, process, "[send, client] starting SNDTOSYNCED rule")
-				re.logProcessf(LOGRULEDETAILS, process, "Received message on channel %s, containing message rule SNDTOSYNCED\n", f.to_c.String())
-
-				// Although the process dies, its provider will be used as the client's provider
-				// process.renamed(process.Providers, []Name{f.to_c}, re)
-			}
-
-			TransitionBySending(process, f.to_c.Channel, sndToSyncedRule, message, re)
-		} else {
-			// RCV rule (client, -ve)
-			//
-			// [send to_c <payload_c, self>]
-			//    |
-			//    |
-			//   \|/
-			// <...> <- recv self; ...
-
-			if !f.continuation_c.IsSelf {
-				// todo error
-				re.errorf(process, "[send, client] in RCV rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
-			}
-
-			message := Message{Rule: RCV, Channel1: f.payload_c, Channel2: process.Providers[0]}
-			// Send the provider channel (self) as the continuation channel
-
-			rcvRule := func() {
-				// Message is the received message
-				re.logProcess(LOGRULE, process, "[send, client] starting RCV rule")
-				re.logProcessf(LOGRULEDETAILS, process, "Received message on channel %s, containing message rule RCV\n", f.to_c.String())
-
-				// Although the process dies, its provider will be used as the client's provider
-				// process.renamed(process.Providers, []Name{f.to_c}, re)
-			}
-
-			TransitionBySending(process, f.to_c.Channel, rcvRule, message, re)
-		}
+		TransitionBySending(process, f.to_c.Channel, rcvRule, message, re)
 	}
 }
 
@@ -317,15 +298,11 @@ func (f *ReceiveForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(RCV, "[receive, provider]", "(p)", re)
 			// Terminate the current provider to replace them with the one being received
-			// This will remove the process from the current list of processes so that it can be updated with the new names
 			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
 
 			process.Body = new_body
 			process.Providers = []Name{message.Channel2}
 			// process.finishedRule(RCV, "[receive, provider]", "(p)", re)
-
-			// add the process with the new names after terminateBeforeRename removes it's entry with old names
-			re.AddProcess(process)
 
 			process.processRenamed(re)
 			process.transitionLoop(re)
@@ -341,38 +318,9 @@ func (f *ReceiveForm) Transition(process *Process, re *RuntimeEnvironment) {
 		//    |
 		// send to_c <...>
 
-		var fromChannel *Process
-		var exists bool
-
-		retries := 20
-
-		// attempt to find the partnering proc a few times before giving up
-		// no need for ready logic since we don't care about the form
-		for i := 0; i < retries; i++ {
-			re.mu.Lock()
-			fromChannel, exists = re.RunningProcesses[f.from_c.Ident]
-			re.mu.Unlock()
-
-			if exists {
-				break
-			}
-
-			// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
-			sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
-			time.Sleep(sleepTime)
-		}
-
-		if !exists {
-			re.errorf(process, "Channel %s not found after %d retries. The sender likely failed to register.", f.from_c.Ident, retries)
-			return
-		}
-
 		sndRule := func(message Message) {
 			re.logProcess(LOGRULE, process, "[receive, client] starting SND rule")
 			re.logProcessf(LOGRULEDETAILS, process, "[receive, client] Received message on channel %s, containing rule: %s\n", f.from_c.String(), RuleString[message.Rule])
-
-			// terminate sender
-			fromChannel.terminate(re)
 
 			if message.Rule != SND {
 				re.error(process, "expected SND")
@@ -644,15 +592,11 @@ func (f *CaseForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(BRA, "[case, provider]", "(p)", re)
 			// Terminate the current provider to replace them with the one being received
-			// This will remove the process from the current list of processes so that it can be updated with the new names
 			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
 
 			process.Body = new_body
 			process.Providers = []Name{message.Channel1}
 			// process.finishedRule(BRA, "[receive, provider]", "(p)", re)
-
-			// add the process with the new names after terminateBeforeRename removes it's entry with old names
-			re.AddProcess(process)
 
 			process.processRenamed(re)
 
@@ -715,6 +659,8 @@ func (f *CloseForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 		clsRule := func() {
 			re.logProcess(LOGRULEDETAILS, process, "[close, provider] finished sending on self")
+			// the rule CLS is not guaranteed to be done, since it depends on the other side as well
+			process.terminate(re)
 		}
 
 		TransitionBySending(process, process.Providers[0].Channel, clsRule, message, re)
@@ -730,40 +676,12 @@ func (f *WaitForm) Transition(process *Process, re *RuntimeEnvironment) {
 		re.error(process, "Found a wait on self. Wait should only wait for other channels.")
 	}
 
-	var channelToWaitOn *Process
-	var exists bool
-
-	retries := 20
-
-	// attempt to find the partnering proc a few times before giving up
-	// no need for ready logic since we don't care about the form
-	for i := 0; i < retries; i++ {
-		re.mu.Lock()
-		channelToWaitOn, exists = re.RunningProcesses[f.to_c.Ident]
-		re.mu.Unlock()
-
-		if exists {
-			break
-		}
-
-		// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
-		sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
-		time.Sleep(sleepTime)
-	}
-
-	if !exists {
-		re.errorf(process, "Channel %s not found after %d retries. The sender likely failed to register.", f.to_c.Ident, retries)
-		return
-	}
-
 	clsRule := func(message Message) {
 		// CLS rule (client)
 		// wait to_c; ...
 
 		re.logProcess(LOGRULE, process, "[wait, client] starting CLS rule")
 		re.logProcessf(LOGRULEDETAILS, process, "[wait, client] Received message on channel %s, containing rule: %s\n", f.to_c.String(), RuleString[message.Rule])
-
-		channelToWaitOn.terminate(re)
 
 		if message.Rule != CLS {
 			re.error(process, "expected CLS")
@@ -991,59 +909,9 @@ func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
 func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of sync state: %s\n", f.String())
 
-	var firstChannel *Process
-	var ready bool
-
-	retries := 20
-
-	// attempt to find the partnering proc a few times before giving up
-	for i := 0; i < retries; i++ {
-		re.mu.Lock()
-		foundProcess, exists := re.RunningProcesses[f.channel_one.Ident]
-
-		if exists {
-			tempBody := foundProcess.Body
-
-			switch tempBody.(type) {
-			case *SendForm, *ReceiveForm, *CloseForm:
-				firstChannel = foundProcess
-				ready = true
-			default:
-				// wait for process to transition to desired form
-			}
-		}
-
-		re.mu.Unlock()
-
-		if ready {
-			break
-		}
-
-		// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
-		sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
-		time.Sleep(sleepTime)
-	}
-
-	if !ready {
-		re.errorf(process, "Process %s never reached a stable form after %d retries.", f.channel_one.Ident, retries)
-		return
-	}
-
-	firstChannelForm := firstChannel.Body
-
-	if _, ok := firstChannelForm.(*SendForm); ok { // RCVFROMSYNCED as replicas are sending
-		rcvFromSyncedRule := func(message Message) {
+	rule := func(message Message) {
+		if message.Rule == SND {
 			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting RCVFROMSYNCED rule")
-
-			// terminate sender
-			firstChannel.terminate(re)
-
-			// expecting a SND since when the to channel in send is self, there is no way to identify the form of the recipient
-			// like this, either SyncState or Receive will receive the payload, depending on whether we have sync{a1, a2} or recv a1
-			// we can be rest assured that the typing rules have handled the program's correctness
-			if message.Rule != SND {
-				re.errorf(process, "expected SND to then perform RCVFROMSYNCED, found %s\n", RuleString[message.Rule])
-			}
 
 			intermediateSyncState := re.CreateFreshChannel(process.Providers[0].Ident + "_int")
 			intermediateSyncState.Type = types.CopyType(process.Providers[0].Type)
@@ -1060,48 +928,13 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(RCVFROMSYNCED, "[receive, intermediate]", "", re)
 			process.transitionLoop(re)
-		}
-
-		// since we receive from the first replica, the channel carrying the message is the channel of the first replica. This is equivalent to the from channel in recv see SND reduction rule
-		TransitionByReceiving(process, f.channel_one.Channel, rcvFromSyncedRule, re)
-	} else if _, ok := firstChannelForm.(*ReceiveForm); ok { // replicas are not sending and only other valid case is SNDTOSYNCED i.e. sending to replicas i.e. replicas receiving
-		sndToSyncedRule := func(message Message) {
-			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving from parent")
-
-			if message.Rule != SNDTOSYNCED {
-				re.errorf(process, "expected SNDTOSYNCED, found %s\n", RuleString[message.Rule])
-			}
+		} else if message.Rule == RCV {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving parent, starting SNDTOSYNCED")
 
 			newSendOne := re.CreateFreshChannel(process.Providers[0].Ident + "1")
 			newSendTwo := re.CreateFreshChannel(process.Providers[0].Ident + "2")
 
-			var receivedContinuationChannel *Process
-			var exists bool
-
-			retries := 20
-
-			// attempt to find the partnering proc a few times before giving up
-			// no need for ready logic since we don't care about the form
-			for i := 0; i < retries; i++ {
-				re.mu.Lock()
-				receivedContinuationChannel, exists = re.RunningProcesses[message.Channel2.Ident]
-				re.mu.Unlock()
-
-				if exists {
-					break
-				}
-
-				// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
-				sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
-				time.Sleep(sleepTime)
-			}
-
-			if !exists {
-				re.errorf(process, "Channel %s not found after %d retries. The channel likely failed to register", message.Channel2.Ident, retries)
-				return
-			}
-
-			receivedContinuationChannelType := receivedContinuationChannel.Type
+			receivedContinuationChannelType := message.Channel2.Type
 
 			// new sends take the type of the sending parent
 			newSendOne.Type = types.CopyType(receivedContinuationChannelType)
@@ -1118,14 +951,10 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 			new_body := NewSyncState(newSendOne, newSendTwo)
 
 			// Terminate the current provider to replace them with the one being received
-			// This will remove the process from the current list of processes so that it can be updated with the new names
 			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
 
 			process.Body = new_body
 			process.Providers = []Name{message.Channel2}
-
-			// add the process with the new names after terminateBeforeRename removes it's entry with old names
-			re.AddProcess(process)
 
 			process.processRenamed(re)
 
@@ -1135,21 +964,8 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 			process.finishedRule(SNDTOSYNCED, "[receive, intermediate]", "", re)
 
 			process.transitionLoop(re)
-		}
-
-		TransitionByReceiving(process, process.Providers[0].Channel, sndToSyncedRule, re)
-	} else { // replicas are closing i.e. CLSSYNCED1
-		clsSyyncedOneRule := func(message Message) {
+		} else if message.Rule == CLS {
 			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED1 rule")
-
-			// terminate sender
-			firstChannel.terminate(re)
-
-			// expecting a CLS since there is no way to identify the form of the recipient of the close
-			// we can be rest assured that the typing rules have handled the program's correctness
-			if message.Rule != CLS {
-				re.errorf(process, "expected CLS to then perform CLSSYNCED1, found %s\n", RuleString[message.Rule])
-			}
 
 			clsSyncStateBody := NewClsSyncState(f.channel_two)
 
@@ -1157,47 +973,19 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(CLSSYNCED1, "[wait, intermediate]", "", re)
 			process.transitionLoop(re)
+		} else {
+			re.errorf(process, "did not receive an expected rule (SND, RCV, CLS), found %s\n", RuleString[message.Rule])
 		}
-
-		// since we receive from the first replica, the channel carrying the message is the channel of the first replica
-		TransitionByReceiving(process, f.channel_one.Channel, clsSyyncedOneRule, re)
 	}
+
+	TransitionBySelect(process, f.channel_one.Channel, process.Providers[0].Channel, rule, re)
 }
 
 func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of intermediate sync state: %s\n", f.String())
 
-	var channel *Process
-	var exists bool
-
-	retries := 20
-
-	// attempt to find the partnering proc a few times before giving up
-	// no need for ready logic since we don't care about the form
-	for i := 0; i < retries; i++ {
-		re.mu.Lock()
-		channel, exists = re.RunningProcesses[f.channel.Ident]
-		re.mu.Unlock()
-
-		if exists {
-			break
-		}
-
-		// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
-		sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
-		time.Sleep(sleepTime)
-	}
-
-	if !exists {
-		re.errorf(process, "Channel %s not found after %d retries. The replica likely failed to register.", f.channel.Ident, retries)
-		return
-	}
-
 	ignoreRule := func(message Message) {
 		re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting IGNORE rule")
-
-		// terminate sender
-		channel.terminate(re)
 
 		// expecting a SND since when the to channel in send is self, there is no way to identify the form of the recipient
 		// like this, either SyncState or Receive will receive the payload, depending on whether we have sync{a1, a2} or recv a1
@@ -1220,37 +1008,8 @@ func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of close sync state: %s\n", f.String())
 
-	var channel *Process
-	var exists bool
-
-	retries := 20
-
-	// attempt to find the partnering proc a few times before giving up
-	// no need for ready logic since we don't care about the form
-	for i := 0; i < retries; i++ {
-		re.mu.Lock()
-		channel, exists = re.RunningProcesses[f.channel.Ident]
-		re.mu.Unlock()
-
-		if exists {
-			break
-		}
-
-		// exponential backoff to give the newly spawned goroutines a chance to call re.AddProcess() to be found
-		sleepTime := time.Duration(1<<uint(i/2)) * time.Millisecond
-		time.Sleep(sleepTime)
-	}
-
-	if !exists {
-		re.errorf(process, "Channel %s not found after %d retries. The replica likely failed to register.", f.channel.Ident, retries)
-		return
-	}
-
 	clsSyncedTwoRule := func(message Message) {
 		re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED2 rule")
-
-		// terminate sender
-		channel.terminate(re)
 
 		// expecting a CLS since there is no way to identify the form of the recipient of the close
 		// we can be rest assured that the typing rules have handled the program's correctness
@@ -1476,14 +1235,10 @@ func (f *ShiftForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(SHF, "[shift, provider]", "(p)", re)
 			// Terminate the current provider to replace them with the one being received
-			// This will remove the process from the current list of processes so that it can be updated with the new names
 			process.terminateBeforeRename(process.Providers, []Name{message.Channel1}, re)
 
 			process.Body = new_body
 			process.Providers = []Name{message.Channel1}
-
-			// add the process with the new names after terminateBeforeRename removes it's entry with old names
-			re.AddProcess(process)
 
 			process.processRenamed(re)
 
@@ -1582,7 +1337,6 @@ func (process *Process) terminate(re *RuntimeEnvironment) {
 
 	// Update dead process count. Ignore if timing processes
 	atomic.AddUint64(&re.deadProcessCount, 1)
-	re.RemoveProcess(process)
 }
 
 // A forward process will terminate, but its providers will be used by other processes being forwarded
@@ -1630,7 +1384,6 @@ func (process *Process) terminateBeforeRename(oldProviders, newProviders []Name,
 
 	// Update dead process count
 	atomic.AddUint64(&re.deadProcessCount, 1)
-	re.RemoveProcess(process)
 }
 
 func (process *Process) renamed(oldProviders, newProviders []Name, re *RuntimeEnvironment) {
