@@ -1560,6 +1560,10 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	// if types of channels being synced are equal, then this variable is used as the type of the bridge channel
 	typeOfSyncedChans := providedTypesOfSyncedChans[0]
 
+	if !typeOfSyncedChans.IsSynchronisable() {
+		return TypeErrorf("type of replicas is not synchronisable.")
+	}
+
 	if nameTypeExists(gammaNameTypesCtx, p.bridge_c.Ident) {
 		return TypeErrorf("variable name '%s' already defined. Use a unique name", p.bridge_c.String())
 	}

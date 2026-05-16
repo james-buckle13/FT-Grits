@@ -21,6 +21,8 @@ type SessionType interface {
 	StringWithOuterModality() string
 	Polarity() Polarity
 	Modality() Modality
+	IsNat() bool
+	IsSynchronisable() bool
 
 	// used for type structure checks
 	checkTypeLabels(LabelledTypesEnv) error
@@ -71,6 +73,14 @@ func (q *LabelType) Modality() Modality {
 	return q.Mode
 }
 
+func (q *LabelType) IsNat() bool {
+	return false
+}
+
+func (q *LabelType) IsSynchronisable() bool {
+	return false
+}
+
 // Unit: 1
 type UnitType struct {
 	Mode Modality
@@ -107,6 +117,14 @@ func (q *UnitType) Modality() Modality {
 	return q.Mode
 }
 
+func (q *UnitType) IsNat() bool {
+	return false
+}
+
+func (q *UnitType) IsSynchronisable() bool {
+	return true
+}
+
 // nat: nat
 type NatType struct {
 	Mode Modality
@@ -141,6 +159,14 @@ func (q *NatType) StringWithOuterModality() string {
 
 func (q *NatType) Modality() Modality {
 	return q.Mode
+}
+
+func (q *NatType) IsNat() bool {
+	return true
+}
+
+func (q *NatType) IsSynchronisable() bool {
+	return true
 }
 
 // Send: A * B
@@ -191,6 +217,14 @@ func (q *SendType) StringWithOuterModality() string {
 
 func (q *SendType) Modality() Modality {
 	return q.Mode
+}
+
+func (q *SendType) IsNat() bool {
+	return false
+}
+
+func (q *SendType) IsSynchronisable() bool {
+	return q.Left.IsNat() && q.Right.IsSynchronisable()
 }
 
 // Receive: A -* B
@@ -245,6 +279,14 @@ func (q *ReceiveType) Modality() Modality {
 	return q.Mode
 }
 
+func (q *ReceiveType) IsNat() bool {
+	return false
+}
+
+func (q *ReceiveType) IsSynchronisable() bool {
+	return q.Left.IsNat() && q.Right.IsSynchronisable()
+}
+
 // SelectLabel: +{ }
 type SelectLabelType struct {
 	Branches []Option
@@ -290,6 +332,20 @@ func (q *SelectLabelType) Modality() Modality {
 	return q.Mode
 }
 
+func (q *SelectLabelType) IsNat() bool {
+	return false
+}
+
+func (q *SelectLabelType) IsSynchronisable() bool {
+	for i := range q.Branches {
+		if !q.Branches[i].SessionType.IsSynchronisable() {
+			return false
+		}
+	}
+
+	return true
+}
+
 // BranchCase: & { }
 type BranchCaseType struct {
 	Branches []Option
@@ -333,6 +389,20 @@ func (q *BranchCaseType) StringWithOuterModality() string {
 
 func (q *BranchCaseType) Modality() Modality {
 	return q.Mode
+}
+
+func (q *BranchCaseType) IsNat() bool {
+	return false
+}
+
+func (q *BranchCaseType) IsSynchronisable() bool {
+	for i := range q.Branches {
+		if !q.Branches[i].SessionType.IsSynchronisable() {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Up shift: m /\ n ...
@@ -384,6 +454,14 @@ func (q *UpType) Modality() Modality {
 	return q.To
 }
 
+func (q *UpType) IsNat() bool {
+	return false
+}
+
+func (q *UpType) IsSynchronisable() bool {
+	return false
+}
+
 // Down shift: m \/ n ...
 type DownType struct {
 	From         Modality
@@ -431,6 +509,14 @@ func (q *DownType) StringWithOuterModality() string {
 
 func (q *DownType) Modality() Modality {
 	return q.To
+}
+
+func (q *DownType) IsNat() bool {
+	return false
+}
+
+func (q *DownType) IsSynchronisable() bool {
+	return false
 }
 
 // Branch/Case option
