@@ -860,10 +860,6 @@ func (f *LetForm) Transition(process *Process, re *RuntimeEnvironment) {
 func (f *SyncForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of sync: %s\n", f.String())
 
-	if len(f.channels_to_be_synced) != 2 {
-		re.error(process, "at runtime current implementation expects sync to have exactly 2 replicas")
-	}
-
 	for i := range f.channels_to_be_synced {
 		if f.channels_to_be_synced[i].IsSelf {
 			re.error(process, "should not sync self")
