@@ -1037,24 +1037,31 @@ func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of close sync state: %s\n", f.String())
 
-	clsSyncedTwoRule := func(message Message) {
-		re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED2 rule")
+	rule := func(message Message) {
+		if message.Rule == CLS {
+			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED2 rule")
 
-		// expecting a CLS since there is no way to identify the form of the recipient of the close
-		// we can be rest assured that the typing rules have handled the program's correctness
-		if message.Rule != CLS {
-			re.errorf(process, "expected CLS to then perform CLSSYNCED2, found %s\n", RuleString[message.Rule])
+			new_body := NewClose(NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.finishedRule(CLSSYNCED2, "[wait, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else if message.Rule == BOOM {
+			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving fault induction from replica, starting BOOM2 rule")
+
+			new_body := NewClose(NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.finishedRule(BOOM2, "[wait, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else {
+			re.errorf(process, "did not receive an expected rule (CLS, BOOM), found %s\n", RuleString[message.Rule])
 		}
-
-		new_body := NewClose(NewSelf(process.Providers[0].Ident))
-
-		process.Body = new_body
-
-		process.finishedRule(CLSSYNCED2, "[wait, intermediate]", "", re)
-		process.transitionLoop(re)
 	}
 
-	TransitionByReceiving(process, f.channel.Channel, clsSyncedTwoRule, re)
+	TransitionByReceiving(process, f.channel.Channel, rule, re)
 }
 
 func (f *BoomForm) Transition(process *Process, re *RuntimeEnvironment) {
