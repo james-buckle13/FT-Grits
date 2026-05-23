@@ -93,12 +93,8 @@ func TransitionByReceiving(process *Process, clientChan chan Message, processMes
 }
 
 // this is to be used by the SyncState transition
-func TransitionBySelect(process *Process, clientChan1, clientChan2 chan Message, processMessageFunc func(Message), re *RuntimeEnvironment) {
-	if clientChan1 == nil {
-		re.error(process, "Channel not initialized (attempting to receive on a dead channel)")
-	}
-
-	if clientChan2 == nil {
+func TransitionBySelect(process *Process, clientChan1, clientChan2, clientChan3 chan Message, processMessageFunc func(Message), re *RuntimeEnvironment) {
+	if clientChan1 == nil || clientChan2 == nil || clientChan3 == nil {
 		re.error(process, "Channel not initialized (attempting to receive on a dead channel)")
 	}
 
@@ -122,6 +118,17 @@ func TransitionBySelect(process *Process, clientChan1, clientChan2 chan Message,
 				processMessageFunc(receivedMessage)
 			}
 		case receivedMessage := <-clientChan2:
+			// Blocks until a message arrives (may be a FWD request)
+
+			// Process acting as a client by consuming a message from some channel
+			if receivedMessage.Rule == FWD {
+				handleNegativeForwardRequest(process, receivedMessage, re)
+			} else if receivedMessage.Rule == GC {
+				handleNegativeDropRequest(process, re)
+			} else {
+				processMessageFunc(receivedMessage)
+			}
+		case receivedMessage := <-clientChan3:
 			// Blocks until a message arrives (may be a FWD request)
 
 			// Process acting as a client by consuming a message from some channel
@@ -224,7 +231,7 @@ func (f *SendForm) Transition(process *Process, re *RuntimeEnvironment) {
 		//    |
 		// [send self <...>]
 
-		message := Message{Rule: SND, Channel1: f.payload_c, Channel2: f.continuation_c}
+		message := Message{Rule: SND, Channel1: f.payload_c, Channel2: f.continuation_c, Providers: process.Providers}
 
 		sndRule := func() {
 			re.logProcess(LOGRULEDETAILS, process, "[send, provider] finished sending on self")
@@ -257,7 +264,7 @@ func (f *SendForm) Transition(process *Process, re *RuntimeEnvironment) {
 			re.errorf(process, "[send, client] in RCV rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
 		}
 
-		message := Message{Rule: RCV, Channel1: f.payload_c, Channel2: process.Providers[0]}
+		message := Message{Rule: RCV, Channel1: f.payload_c, Channel2: process.Providers[0], Providers: process.Providers}
 		// Send the provider channel (self) as the continuation channel
 
 		rcvRule := func() {
@@ -509,7 +516,7 @@ func (f *SelectForm) Transition(process *Process, re *RuntimeEnvironment) {
 		//    |
 		// [self.label<...>]
 
-		message := Message{Rule: SEL, Channel1: f.continuation_c, Label: f.label}
+		message := Message{Rule: SEL, Channel1: f.continuation_c, Label: f.label, Providers: process.Providers}
 
 		selRule := func() {
 			re.logProcess(LOGRULEDETAILS, process, "[select, provider] finished sending on self")
@@ -530,7 +537,7 @@ func (f *SelectForm) Transition(process *Process, re *RuntimeEnvironment) {
 			re.errorf(process, "[select, client] in BRA rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
 		}
 
-		message := Message{Rule: BRA, Channel1: process.Providers[0], Label: f.label}
+		message := Message{Rule: BRA, Channel1: process.Providers[0], Label: f.label, Providers: process.Providers}
 		// Send the provider channel (self) as the continuation channel
 
 		braRule := func() {
@@ -655,7 +662,7 @@ func (f *CloseForm) Transition(process *Process, re *RuntimeEnvironment) {
 		// CLS rule (provider)
 		// close self
 
-		message := Message{Rule: CLS}
+		message := Message{Rule: CLS, Providers: process.Providers}
 
 		clsRule := func() {
 			re.logProcess(LOGRULEDETAILS, process, "[close, provider] finished sending on self")
@@ -913,7 +920,16 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 			intermediateSyncState.Type = types.CopyType(process.Providers[0].Type)
 			intermediateSyncStateSessionType := types.CopyType(process.Providers[0].Type)
 
-			intSyncStateBody := NewIntSyncState(f.channel_two, message.Channel2)
+			var channelForIntSyncState Name
+			if !f.channel_one.ContainedIn(message.Providers) {
+				channelForIntSyncState = f.channel_one
+			} else if !f.channel_two.ContainedIn(message.Providers) {
+				channelForIntSyncState = f.channel_two
+			} else {
+				re.errorf(process, "did not receive on a correct channel, exepceted to receive on either: %s or %s", f.channel_one.Ident, f.channel_two.Ident)
+			}
+
+			intSyncStateBody := NewIntSyncState(channelForIntSyncState, message.Channel2)
 			intSyncStateProcess := NewProcess(intSyncStateBody, []Name{intermediateSyncState}, intermediateSyncStateSessionType, LINEAR, process.Position)
 
 			new_body := NewSend(NewSelf(process.Providers[0].Ident), message.Channel1, intermediateSyncState)
@@ -963,7 +979,16 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 		} else if message.Rule == CLS {
 			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED1 rule")
 
-			clsSyncStateBody := NewClsSyncState(f.channel_two)
+			var channelForClsSyncState Name
+			if !f.channel_one.ContainedIn(message.Providers) {
+				channelForClsSyncState = f.channel_one
+			} else if !f.channel_two.ContainedIn(message.Providers) {
+				channelForClsSyncState = f.channel_two
+			} else {
+				re.errorf(process, "did not receive on a correct channel, exepceted to receive on either: %s or %s but received from %s instead", f.channel_one.Ident, f.channel_two.Ident, message.Providers[0].Ident)
+			}
+
+			clsSyncStateBody := NewClsSyncState(channelForClsSyncState)
 
 			process.Body = clsSyncStateBody
 
@@ -974,7 +999,7 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 		}
 	}
 
-	TransitionBySelect(process, f.channel_one.Channel, process.Providers[0].Channel, rule, re)
+	TransitionBySelect(process, f.channel_one.Channel, f.channel_two.Channel, process.Providers[0].Channel, rule, re)
 }
 
 func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
@@ -1169,7 +1194,7 @@ func (f *CastForm) Transition(process *Process, re *RuntimeEnvironment) {
 		//    |
 		// [cast self <...>]
 
-		message := Message{Rule: CST, Channel1: f.continuation_c}
+		message := Message{Rule: CST, Channel1: f.continuation_c, Providers: process.Providers}
 
 		cstRule := func() {
 			re.logProcess(LOGRULEDETAILS, process, "[cast, provider] finished casting on self")
@@ -1191,7 +1216,7 @@ func (f *CastForm) Transition(process *Process, re *RuntimeEnvironment) {
 			re.errorf(process, "[cast, client] in SHF rule, the continuation channel should be self, but found %s\n", f.continuation_c.String())
 		}
 
-		message := Message{Rule: SHF, Channel1: process.Providers[0]}
+		message := Message{Rule: SHF, Channel1: process.Providers[0], Providers: process.Providers}
 		// Send the provider channel (self) as the continuation channel
 
 		shfRule := func() {
