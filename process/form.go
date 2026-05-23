@@ -711,6 +711,44 @@ func (p *CloseForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironmen
 	return types.UNKNOWN
 }
 
+type BoomForm struct {
+	from_c Name
+}
+
+func NewBoom(from_c Name) *BoomForm {
+	return &BoomForm{from_c: from_c}
+}
+
+func (p *BoomForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("boom ")
+	buf.WriteString(p.from_c.String())
+	return buf.String()
+}
+
+func (p *BoomForm) StringShort() string {
+	return p.String()
+}
+
+func (p *BoomForm) Substitute(old, new Name) {
+	p.from_c.Substitute(old, new)
+}
+
+func (p *BoomForm) FreeNames() []Name {
+	var fn []Name
+	fn = appendIfNotSelf(p.from_c, fn)
+	return fn
+}
+
+func (p *BoomForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	if p.from_c.IsSelf {
+		return types.POSITIVE
+	}
+	// return p.from_c.Type.Polarity()
+
+	return types.UNKNOWN
+}
+
 // Forward: fwd to_c from_c
 type ForwardForm struct {
 	to_c    Name
@@ -1273,6 +1311,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.from_c.Equal(f2.from_c)
 		}
+	case *BoomForm:
+		f1, ok1 := form1.(*BoomForm)
+		f2, ok2 := form2.(*BoomForm)
+
+		if ok1 && ok2 {
+			return f1.from_c.Equal(f2.from_c)
+		}
 	case *NewForm:
 		f1, ok1 := form1.(*NewForm)
 		f2, ok2 := form2.(*NewForm)
@@ -1442,6 +1487,11 @@ func CopyForm(orig Form) Form {
 		if ok {
 			return NewClose(*p.from_c.Copy())
 		}
+	case *BoomForm:
+		p, ok := orig.(*BoomForm)
+		if ok {
+			return NewClose(*p.from_c.Copy())
+		}
 	case *NewForm:
 		p, ok := orig.(*NewForm)
 		if ok {
@@ -1563,6 +1613,8 @@ func FormHasContinuation(form Form) bool {
 	case *IntSyncStateForm:
 		return false
 	case *ClsSyncStateForm:
+		return false
+	case *BoomForm:
 		return false
 	default:
 		// These have a continuation:

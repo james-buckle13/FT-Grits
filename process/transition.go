@@ -1049,6 +1049,8 @@ func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 	TransitionByReceiving(process, f.channel.Channel, clsSyncedTwoRule, re)
 }
 
+func (f *BoomForm) Transition(process *Process, re *RuntimeEnvironment) {}
+
 func (f *SplitForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of split: %s\n", f.String())
 
