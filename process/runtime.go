@@ -50,8 +50,6 @@ type RuntimeEnvironment struct {
 
 	Quiet bool // Suppresses 'print' output
 	// might be useful to replace with a buffer for the output
-
-	mu sync.Mutex
 }
 
 type Execution_Version int
