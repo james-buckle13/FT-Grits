@@ -1592,7 +1592,30 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	return continuationError
 }
 
+// boom from_c
 func (p *BoomForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+
+	globalEnv.log(LOGRULEDETAILS, "rule BOOM")
+
+	providerType = types.Unfold(providerType, labelledTypesEnv)
+
+	if isProvider(p.from_c, providerShadowName) {
+		p.from_c.Type = providerType
+
+		polarityError := checkExplicitPolarityValidity(p, p.from_c)
+		if polarityError != nil {
+			return TypeErrorE(polarityError)
+		}
+	} else {
+		// inducing a fault on the wrong name
+		return TypeErrorf("expected '%s' to induce a fault on 'self' instead", p.String())
+	}
+
+	// make sure that no variables are left in gamma and delta
+	if err := linearGammaAndDeltaContext(gammaNameTypesCtx, deltaNameTypesCtx); err != nil {
+		return TypeErrorE(err)
+	}
+
 	return nil
 }
 
