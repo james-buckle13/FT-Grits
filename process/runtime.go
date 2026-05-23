@@ -377,6 +377,11 @@ const (
 	SPLIT
 	CALL // (maybe can happen when interactive or not)
 
+	BOOM
+	BOOM1
+	BOOM2
+	BOOMRCV
+
 	LET
 
 	SYNC
@@ -411,6 +416,11 @@ var RuleString = map[Rule]string{
 	FALCUT: "FALCUT",
 	CALL:   "CALL",
 	SPLIT:  "SPLIT",
+
+	BOOM:    "BOOM",
+	BOOM1:   "BOOM1",
+	BOOM2:   "BOOM2",
+	BOOMRCV: "BOOMRCV",
 
 	LET: "LET",
 
