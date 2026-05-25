@@ -380,6 +380,8 @@ const (
 	BOOM2
 	BOOMRCV
 	BOOMSAFE
+	CLSBOOMSAFE
+	RCVFROMBOOMSAFE
 
 	LET
 
@@ -416,11 +418,13 @@ var RuleString = map[Rule]string{
 	CALL:   "CALL",
 	SPLIT:  "SPLIT",
 
-	BOOM:     "BOOM",
-	BOOM1:    "BOOM1",
-	BOOM2:    "BOOM2",
-	BOOMRCV:  "BOOMRCV",
-	BOOMSAFE: "BOOMSAFE",
+	BOOM:            "BOOM",
+	BOOM1:           "BOOM1",
+	BOOM2:           "BOOM2",
+	BOOMRCV:         "BOOMRCV",
+	BOOMSAFE:        "BOOMSAFE",
+	CLSBOOMSAFE:     "CLSBOOMSAFE",
+	RCVFROMBOOMSAFE: "RCVFROMBOOMSAFE",
 
 	LET: "LET",
 

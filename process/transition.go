@@ -1082,7 +1082,37 @@ func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 	TransitionByReceiving(process, f.channel.Channel, rule, re)
 }
 
-func (f *BoomSafeForm) Transition(process *Process, re *RuntimeEnvironment) {}
+func (f *BoomSafeForm) Transition(process *Process, re *RuntimeEnvironment) {
+	re.logProcessf(LOGRULEDETAILS, process, "transition of boom safe state: %s\n", f.String())
+
+	rule := func(message Message) {
+		if message.Rule == CLS {
+			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSBOOMSAFE rule")
+
+			new_body := NewClose(NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.finishedRule(CLSBOOMSAFE, "[wait, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else if message.Rule == SND {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting RCVFROMBOOMSAFE rule")
+
+			new_body := NewSend(NewSelf(process.Providers[0].Ident), message.Channel1, message.Channel2)
+
+			process.Body = new_body
+
+			process.finishedRule(RCVFROMBOOMSAFE, "[receive, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else if message.Rule == RCV {
+
+		} else {
+			re.errorf(process, "did not receive an expected rule (CLS, SND, RCV), found %s\n", RuleString[message.Rule])
+		}
+	}
+
+	TransitionByReceiving(process, f.channel.Channel, rule, re)
+}
 
 func (f *BoomForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of boom: %s\n", f.String())
