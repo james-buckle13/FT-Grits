@@ -1064,6 +1064,8 @@ func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) 
 	TransitionByReceiving(process, f.channel.Channel, rule, re)
 }
 
+func (f *BoomSafeForm) Transition(process *Process, re *RuntimeEnvironment) {}
+
 func (f *BoomForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of boom: %s\n", f.String())
 

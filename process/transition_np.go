@@ -641,6 +641,10 @@ func (f *ClsSyncStateForm) TransitionNP(process *Process, re *RuntimeEnvironment
 	// not used
 }
 
+func (f *BoomSafeForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	// not used
+}
+
 func (f *BoomForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	// not used
 }
