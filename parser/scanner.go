@@ -298,6 +298,9 @@ func (s *scanner) scanLabel(ch rune) (token tok, value string, startPos, endPos 
 	case "boom":
 		s.lastToken = BOOM
 		return BOOM, buf.String(), startPos, endPos
+	case "boom_in":
+		s.lastToken = BOOM_IN
+		return BOOM_IN, buf.String(), startPos, endPos
 	}
 	s.lastToken = LABEL
 	return LABEL, buf.String(), startPos, endPos

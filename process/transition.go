@@ -1084,6 +1084,38 @@ func (f *BoomForm) Transition(process *Process, re *RuntimeEnvironment) {
 	}
 }
 
+func (f *BoomInForm) Transition(process *Process, re *RuntimeEnvironment) {
+	re.logProcessf(LOGRULEDETAILS, process, "transition of boom_in: %s\n", f.String())
+
+	if f.from_c.IsSelf {
+		// boom_in self
+
+		rule := func(message Message) {
+
+			re.logProcess(LOGRULE, process, "[boom_in, replica] starting BOOMRCV rule")
+			re.logProcessf(LOGRULEDETAILS, process, "[boom_in, replica] Received message on channel %s, containing rule: %s\n", f.from_c.String(), RuleString[message.Rule])
+
+			if message.Rule != RCV {
+				re.error(process, "expected RCV")
+			}
+
+			process.finishedRule(BOOMRCV, "[boom, replica]", "", re)
+
+			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
+
+			process.Body = NewBoom(NewSelf(message.Channel2.Ident))
+			process.Providers = []Name{message.Channel2}
+
+			process.processRenamed(re)
+			process.transitionLoop(re)
+		}
+
+		TransitionByReceiving(process, process.Providers[0].Channel, rule, re)
+	} else {
+		re.error(process, "Found a boom on a client. A process can only induce a fault on itself.")
+	}
+}
+
 func (f *SplitForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of split: %s\n", f.String())
 

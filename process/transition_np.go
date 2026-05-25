@@ -645,6 +645,10 @@ func (f *BoomForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	// not used
 }
 
+func (f *BoomInForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	// not used
+}
+
 func (f *SplitForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of split: %s\n", f.String())
 
