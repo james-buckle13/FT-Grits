@@ -994,8 +994,26 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(CLSSYNCED1, "[wait, intermediate]", "", re)
 			process.transitionLoop(re)
+		} else if message.Rule == BOOM {
+			re.logProcess(LOGRULEDETAILS, process, "[boom, intermediate] receiving from replica, starting BOOMSAFE rule")
+
+			var channelForBoomSafe Name
+			if !f.channel_one.ContainedIn(message.Providers) {
+				channelForBoomSafe = f.channel_one
+			} else if !f.channel_two.ContainedIn(message.Providers) {
+				channelForBoomSafe = f.channel_two
+			} else {
+				re.errorf(process, "did not receive on a correct channel, exepceted to receive on either: %s or %s but received from %s instead", f.channel_one.Ident, f.channel_two.Ident, message.Providers[0].Ident)
+			}
+
+			boomSafeBody := NewBoomSafe(channelForBoomSafe)
+
+			process.Body = boomSafeBody
+
+			process.finishedRule(BOOMSAFE, "[boom, intermediate]", "", re)
+			process.transitionLoop(re)
 		} else {
-			re.errorf(process, "did not receive an expected rule (SND, RCV, CLS), found %s\n", RuleString[message.Rule])
+			re.errorf(process, "did not receive an expected rule (SND, RCV, CLS, BOOM), found %s\n", RuleString[message.Rule])
 		}
 	}
 
