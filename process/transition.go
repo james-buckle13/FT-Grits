@@ -1105,7 +1105,22 @@ func (f *BoomSafeForm) Transition(process *Process, re *RuntimeEnvironment) {
 			process.finishedRule(RCVFROMBOOMSAFE, "[receive, intermediate]", "", re)
 			process.transitionLoop(re)
 		} else if message.Rule == RCV {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving parent, starting SNDTOBOOMSAFE")
 
+			// Terminate the current provider to replace them with the one being received
+			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
+
+			process.Providers = []Name{message.Channel2}
+
+			new_body := NewSend(f.channel, message.Channel1, NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.processRenamed(re)
+
+			process.finishedRule(SNDTOBOOMSAFE, "[receive, intermediate]", "", re)
+
+			process.transitionLoop(re)
 		} else {
 			re.errorf(process, "did not receive an expected rule (CLS, SND, RCV), found %s\n", RuleString[message.Rule])
 		}
