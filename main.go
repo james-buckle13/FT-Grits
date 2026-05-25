@@ -15,7 +15,7 @@ func main() {
 		p := `
 			def body() : nat -* (nat * 1) @ 0 = c:1 <- new close self; <x, y> <- recv self; send y <x, c>
 			def send_to_repl(x : nat -* (nat * 1)): nat * 1 @ 1 = let v = 5 in send x <v, self>
-			prc[q] : nat * 1 @ 1 = a <- spawn (body()); b <- spawn (body()); y <- sync <a, b>; z <- new send_to_repl(y); <x, t> <- recv z; wait t; term:1 <- new close self; send self <x, term>
+			prc[q] : nat * 1 @ 1 = a <- spawn (body()); b: nat -* (nat * 1) <- spawn (boom_in self); y <- sync <a, b>; z <- new send_to_repl(y); <x, t> <- recv z; wait t; term:1 <- new close self; send self <x, term>
 			`
 		dev(p)
 	} else {

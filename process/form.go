@@ -150,6 +150,42 @@ func (p *ClsSyncStateForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnv
 	return types.UNKNOWN
 }
 
+// boom_safe{channel}
+type BoomSafeForm struct {
+	channel Name
+}
+
+func NewBoomSafe(channel Name) *BoomSafeForm {
+	return &BoomSafeForm{
+		channel: channel}
+}
+
+func (p *BoomSafeForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("boom_safe{")
+	buf.WriteString(p.channel.String())
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func (p *BoomSafeForm) StringShort() string {
+	return p.String()
+}
+
+func (p *BoomSafeForm) Substitute(old, new Name) {
+	p.channel.Substitute(old, new)
+}
+
+func (p *BoomSafeForm) FreeNames() []Name {
+	var fn []Name
+	fn = appendIfNotSelf(p.channel, fn)
+	return fn
+}
+
+func (p *BoomSafeForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	return types.UNKNOWN
+}
+
 // below are the static forms
 
 // Send: send to_c<payload_c, continuation_c>
@@ -703,6 +739,82 @@ func (p *CloseForm) FreeNames() []Name {
 }
 
 func (p *CloseForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	if p.from_c.IsSelf {
+		return types.POSITIVE
+	}
+	// return p.from_c.Type.Polarity()
+
+	return types.UNKNOWN
+}
+
+type BoomForm struct {
+	from_c Name
+}
+
+func NewBoom(from_c Name) *BoomForm {
+	return &BoomForm{from_c: from_c}
+}
+
+func (p *BoomForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("boom ")
+	buf.WriteString(p.from_c.String())
+	return buf.String()
+}
+
+func (p *BoomForm) StringShort() string {
+	return p.String()
+}
+
+func (p *BoomForm) Substitute(old, new Name) {
+	p.from_c.Substitute(old, new)
+}
+
+func (p *BoomForm) FreeNames() []Name {
+	var fn []Name
+	fn = appendIfNotSelf(p.from_c, fn)
+	return fn
+}
+
+func (p *BoomForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
+	if p.from_c.IsSelf {
+		return types.POSITIVE
+	}
+	// return p.from_c.Type.Polarity()
+
+	return types.UNKNOWN
+}
+
+type BoomInForm struct {
+	from_c Name
+}
+
+func NewBoomIn(from_c Name) *BoomInForm {
+	return &BoomInForm{from_c: from_c}
+}
+
+func (p *BoomInForm) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("boom_in ")
+	buf.WriteString(p.from_c.String())
+	return buf.String()
+}
+
+func (p *BoomInForm) StringShort() string {
+	return p.String()
+}
+
+func (p *BoomInForm) Substitute(old, new Name) {
+	p.from_c.Substitute(old, new)
+}
+
+func (p *BoomInForm) FreeNames() []Name {
+	var fn []Name
+	fn = appendIfNotSelf(p.from_c, fn)
+	return fn
+}
+
+func (p *BoomInForm) Polarity(fromTypes bool, globalEnvironment *GlobalEnvironment) types.Polarity {
 	if p.from_c.IsSelf {
 		return types.POSITIVE
 	}
@@ -1273,6 +1385,20 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.from_c.Equal(f2.from_c)
 		}
+	case *BoomForm:
+		f1, ok1 := form1.(*BoomForm)
+		f2, ok2 := form2.(*BoomForm)
+
+		if ok1 && ok2 {
+			return f1.from_c.Equal(f2.from_c)
+		}
+	case *BoomInForm:
+		f1, ok1 := form1.(*BoomInForm)
+		f2, ok2 := form2.(*BoomInForm)
+
+		if ok1 && ok2 {
+			return f1.from_c.Equal(f2.from_c)
+		}
 	case *NewForm:
 		f1, ok1 := form1.(*NewForm)
 		f2, ok2 := form2.(*NewForm)
@@ -1392,6 +1518,13 @@ func EqualForm(form1, form2 Form) bool {
 		if ok1 && ok2 {
 			return f1.channel.Equal(f2.channel)
 		}
+	case *BoomSafeForm:
+		f1, ok1 := form1.(*BoomSafeForm)
+		f2, ok2 := form2.(*BoomSafeForm)
+
+		if ok1 && ok2 {
+			return f1.channel.Equal(f2.channel)
+		}
 	}
 
 	fmt.Printf("todo implement EqualForm for type %s\n", a)
@@ -1439,6 +1572,16 @@ func CopyForm(orig Form) Form {
 		}
 	case *CloseForm:
 		p, ok := orig.(*CloseForm)
+		if ok {
+			return NewClose(*p.from_c.Copy())
+		}
+	case *BoomForm:
+		p, ok := orig.(*BoomForm)
+		if ok {
+			return NewClose(*p.from_c.Copy())
+		}
+	case *BoomInForm:
+		p, ok := orig.(*BoomInForm)
 		if ok {
 			return NewClose(*p.from_c.Copy())
 		}
@@ -1532,6 +1675,11 @@ func CopyForm(orig Form) Form {
 		if ok {
 			return NewClsSyncState(*p.channel.Copy())
 		}
+	case *BoomSafeForm:
+		p, ok := orig.(*BoomSafeForm)
+		if ok {
+			return NewClsSyncState(*p.channel.Copy())
+		}
 	// Debug
 	case *PrintForm:
 		p, ok := orig.(*PrintForm)
@@ -1563,6 +1711,12 @@ func FormHasContinuation(form Form) bool {
 	case *IntSyncStateForm:
 		return false
 	case *ClsSyncStateForm:
+		return false
+	case *BoomForm:
+		return false
+	case *BoomInForm:
+		return false
+	case *BoomSafeForm:
 		return false
 	default:
 		// These have a continuation:

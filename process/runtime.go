@@ -50,8 +50,6 @@ type RuntimeEnvironment struct {
 
 	Quiet bool // Suppresses 'print' output
 	// might be useful to replace with a buffer for the output
-
-	mu sync.Mutex
 }
 
 type Execution_Version int
@@ -377,6 +375,15 @@ const (
 	SPLIT
 	CALL // (maybe can happen when interactive or not)
 
+	BOOM
+	BOOM1
+	BOOM2
+	BOOMRCV
+	BOOMSAFE
+	CLSBOOMSAFE
+	RCVFROMBOOMSAFE
+	SNDTOBOOMSAFE
+
 	LET
 
 	SYNC
@@ -411,6 +418,15 @@ var RuleString = map[Rule]string{
 	FALCUT: "FALCUT",
 	CALL:   "CALL",
 	SPLIT:  "SPLIT",
+
+	BOOM:            "BOOM",
+	BOOM1:           "BOOM1",
+	BOOM2:           "BOOM2",
+	BOOMRCV:         "BOOMRCV",
+	BOOMSAFE:        "BOOMSAFE",
+	CLSBOOMSAFE:     "CLSBOOMSAFE",
+	RCVFROMBOOMSAFE: "RCVFROMBOOMSAFE",
+	SNDTOBOOMSAFE:   "SNDTOBOOMSAFE",
 
 	LET: "LET",
 

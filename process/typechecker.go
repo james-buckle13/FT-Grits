@@ -1592,6 +1592,50 @@ func (p *SyncForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypes
 	return continuationError
 }
 
+// boom from_c
+func (p *BoomForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+
+	globalEnv.log(LOGRULEDETAILS, "rule BOOM")
+
+	providerType = types.Unfold(providerType, labelledTypesEnv)
+
+	if isProvider(p.from_c, providerShadowName) {
+		p.from_c.Type = providerType
+
+		polarityError := checkExplicitPolarityValidity(p, p.from_c)
+		if polarityError != nil {
+			return TypeErrorE(polarityError)
+		}
+	} else {
+		// inducing a fault on the wrong name
+		return TypeErrorf("expected '%s' to induce a fault on 'self' instead", p.String())
+	}
+
+	return nil
+}
+
+// boom_in from_c
+func (p *BoomInForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+
+	globalEnv.log(LOGRULEDETAILS, "rule BOOM")
+
+	providerType = types.Unfold(providerType, labelledTypesEnv)
+
+	if isProvider(p.from_c, providerShadowName) {
+		p.from_c.Type = providerType
+
+		polarityError := checkExplicitPolarityValidity(p, p.from_c)
+		if polarityError != nil {
+			return TypeErrorE(polarityError)
+		}
+	} else {
+		// inducing a fault on the wrong name
+		return TypeErrorf("expected '%s' to induce a fault on 'self' instead", p.String())
+	}
+
+	return nil
+}
+
 // this is a runtime construct and so does not need type-checking
 func (p *SyncStateForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	return TypeErrorf("Cannot typecheck a sync state as it is a runtime construct")
@@ -1605,6 +1649,11 @@ func (p *IntSyncStateForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaN
 // this is a runtime construct and so does not need type-checking
 func (p *ClsSyncStateForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
 	return TypeErrorf("Cannot typecheck a close sync state as it is a runtime construct")
+}
+
+// this is a runtime construct and so does not need type-checking
+func (p *BoomSafeForm) typecheckForm(gammaNameTypesCtx NamesTypesCtx, deltaNameTypesCtx NamesTypesCtx, faultTolerancePromise uint64, providerShadowName *Name, providerType types.SessionType, labelledTypesEnv types.LabelledTypesEnv, sigma FunctionTypesEnv, globalEnv *GlobalEnvironment) *TypeError {
+	return TypeErrorf("Cannot typecheck a boom safe state as it is a runtime construct")
 }
 
 // Split: <channel_one, channel_two> <- split from_c; P

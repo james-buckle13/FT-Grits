@@ -994,8 +994,26 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 
 			process.finishedRule(CLSSYNCED1, "[wait, intermediate]", "", re)
 			process.transitionLoop(re)
+		} else if message.Rule == BOOM {
+			re.logProcess(LOGRULEDETAILS, process, "[boom, intermediate] receiving from replica, starting BOOMSAFE rule")
+
+			var channelForBoomSafe Name
+			if !f.channel_one.ContainedIn(message.Providers) {
+				channelForBoomSafe = f.channel_one
+			} else if !f.channel_two.ContainedIn(message.Providers) {
+				channelForBoomSafe = f.channel_two
+			} else {
+				re.errorf(process, "did not receive on a correct channel, exepceted to receive on either: %s or %s but received from %s instead", f.channel_one.Ident, f.channel_two.Ident, message.Providers[0].Ident)
+			}
+
+			boomSafeBody := NewBoomSafe(channelForBoomSafe)
+
+			process.Body = boomSafeBody
+
+			process.finishedRule(BOOMSAFE, "[boom, intermediate]", "", re)
+			process.transitionLoop(re)
 		} else {
-			re.errorf(process, "did not receive an expected rule (SND, RCV, CLS), found %s\n", RuleString[message.Rule])
+			re.errorf(process, "did not receive an expected rule (SND, RCV, CLS, BOOM), found %s\n", RuleString[message.Rule])
 		}
 	}
 
@@ -1005,48 +1023,162 @@ func (f *SyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 func (f *IntSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of intermediate sync state: %s\n", f.String())
 
-	ignoreRule := func(message Message) {
-		re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting IGNORE rule")
+	rule := func(message Message) {
+		if message.Rule == SND {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting IGNORE rule")
 
-		// expecting a SND since when the to channel in send is self, there is no way to identify the form of the recipient
-		// like this, either SyncState or Receive will receive the payload, depending on whether we have sync{a1, a2} or recv a1
-		// we can be rest assured that the typing rules have handled the program's correctness
-		if message.Rule != SND {
-			re.errorf(process, "expected SND to then perform IGNORE, found %s\n", RuleString[message.Rule])
+			new_body := NewSyncState(f.continuation_channel, message.Channel2)
+
+			process.Body = new_body
+
+			process.finishedRule(IGNORE, "[receive, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else if message.Rule == BOOM {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving fault induction from replica, starting BOOM1 rule")
+
+			fwdSessionType := types.CopyType(f.continuation_channel.Type)
+			// TODO maybe use NewSelf
+			new_body := NewForward(Name{IsSelf: true, Ident: f.continuation_channel.Ident, Type: fwdSessionType, ExplicitPolarity: f.continuation_channel.ExplicitPolarity}, f.continuation_channel)
+
+			process.Body = new_body
+
+			process.finishedRule(BOOM1, "[receive, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else {
+			re.errorf(process, "did not receive an expected rule (SND, BOOM), found %s\n", RuleString[message.Rule])
 		}
-
-		new_body := NewSyncState(f.continuation_channel, message.Channel2)
-
-		process.Body = new_body
-
-		process.finishedRule(IGNORE, "[receive, intermediate]", "", re)
-		process.transitionLoop(re)
 	}
 
-	TransitionByReceiving(process, f.channel.Channel, ignoreRule, re)
+	TransitionByReceiving(process, f.channel.Channel, rule, re)
 }
 
 func (f *ClsSyncStateForm) Transition(process *Process, re *RuntimeEnvironment) {
 	re.logProcessf(LOGRULEDETAILS, process, "transition of close sync state: %s\n", f.String())
 
-	clsSyncedTwoRule := func(message Message) {
-		re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED2 rule")
+	rule := func(message Message) {
+		if message.Rule == CLS {
+			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSSYNCED2 rule")
 
-		// expecting a CLS since there is no way to identify the form of the recipient of the close
-		// we can be rest assured that the typing rules have handled the program's correctness
-		if message.Rule != CLS {
-			re.errorf(process, "expected CLS to then perform CLSSYNCED2, found %s\n", RuleString[message.Rule])
+			new_body := NewClose(NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.finishedRule(CLSSYNCED2, "[wait, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else if message.Rule == BOOM {
+			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving fault induction from replica, starting BOOM2 rule")
+
+			new_body := NewClose(NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.finishedRule(BOOM2, "[wait, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else {
+			re.errorf(process, "did not receive an expected rule (CLS, BOOM), found %s\n", RuleString[message.Rule])
 		}
-
-		new_body := NewClose(NewSelf(process.Providers[0].Ident))
-
-		process.Body = new_body
-
-		process.finishedRule(CLSSYNCED2, "[wait, intermediate]", "", re)
-		process.transitionLoop(re)
 	}
 
-	TransitionByReceiving(process, f.channel.Channel, clsSyncedTwoRule, re)
+	TransitionByReceiving(process, f.channel.Channel, rule, re)
+}
+
+func (f *BoomSafeForm) Transition(process *Process, re *RuntimeEnvironment) {
+	re.logProcessf(LOGRULEDETAILS, process, "transition of boom safe state: %s\n", f.String())
+
+	rule := func(message Message) {
+		if message.Rule == CLS {
+			re.logProcess(LOGRULEDETAILS, process, "[wait, intermediate] receiving from replica, starting CLSBOOMSAFE rule")
+
+			new_body := NewClose(NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.finishedRule(CLSBOOMSAFE, "[wait, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else if message.Rule == SND {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] receiving from replica, starting RCVFROMBOOMSAFE rule")
+
+			new_body := NewSend(NewSelf(process.Providers[0].Ident), message.Channel1, message.Channel2)
+
+			process.Body = new_body
+
+			process.finishedRule(RCVFROMBOOMSAFE, "[receive, intermediate]", "", re)
+			process.transitionLoop(re)
+		} else if message.Rule == RCV {
+			re.logProcess(LOGRULEDETAILS, process, "[receive, intermediate] finished receiving parent, starting SNDTOBOOMSAFE")
+
+			// Terminate the current provider to replace them with the one being received
+			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
+
+			process.Providers = []Name{message.Channel2}
+
+			new_body := NewSend(f.channel, message.Channel1, NewSelf(process.Providers[0].Ident))
+
+			process.Body = new_body
+
+			process.processRenamed(re)
+
+			process.finishedRule(SNDTOBOOMSAFE, "[receive, intermediate]", "", re)
+
+			process.transitionLoop(re)
+		} else {
+			re.errorf(process, "did not receive an expected rule (CLS, SND, RCV), found %s\n", RuleString[message.Rule])
+		}
+	}
+
+	TransitionByReceiving(process, f.channel.Channel, rule, re)
+}
+
+func (f *BoomForm) Transition(process *Process, re *RuntimeEnvironment) {
+	re.logProcessf(LOGRULEDETAILS, process, "transition of boom: %s\n", f.String())
+
+	if f.from_c.IsSelf {
+		// boom self
+
+		message := Message{Rule: BOOM, Providers: process.Providers}
+
+		boomRule := func() {
+			re.logProcess(LOGRULEDETAILS, process, "[boom, provider] finished inducing a fault on self")
+			// the rule is not guaranteed to be done, since it depends on the other side as well
+			process.terminate(re)
+		}
+
+		TransitionBySending(process, process.Providers[0].Channel, boomRule, message, re)
+	} else {
+		re.error(process, "Found a boom on a client. A process can only induce a fault on itself.")
+	}
+}
+
+func (f *BoomInForm) Transition(process *Process, re *RuntimeEnvironment) {
+	re.logProcessf(LOGRULEDETAILS, process, "transition of boom_in: %s\n", f.String())
+
+	if f.from_c.IsSelf {
+		// boom_in self
+
+		rule := func(message Message) {
+
+			re.logProcess(LOGRULE, process, "[boom_in, replica] starting BOOMRCV rule")
+			re.logProcessf(LOGRULEDETAILS, process, "[boom_in, replica] Received message on channel %s, containing rule: %s\n", f.from_c.String(), RuleString[message.Rule])
+
+			if message.Rule != RCV {
+				re.error(process, "expected RCV")
+			}
+
+			process.finishedRule(BOOMRCV, "[boom, replica]", "", re)
+
+			process.terminateBeforeRename(process.Providers, []Name{message.Channel2}, re)
+
+			process.Body = NewBoom(NewSelf(message.Channel2.Ident))
+			process.Providers = []Name{message.Channel2}
+
+			process.processRenamed(re)
+			process.transitionLoop(re)
+		}
+
+		TransitionByReceiving(process, process.Providers[0].Channel, rule, re)
+	} else {
+		re.error(process, "Found a boom on a client. A process can only induce a fault on itself.")
+	}
 }
 
 func (f *SplitForm) Transition(process *Process, re *RuntimeEnvironment) {

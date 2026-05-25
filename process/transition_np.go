@@ -622,23 +622,35 @@ func (f *ForwardForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
 }
 
 func (f *LetForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES: populate transition np function for Let
+	// not used
 }
 
 func (f *SyncForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES: populate transition np function for Sync
+	// not used
 }
 
 func (f *SyncStateForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES
+	// not used
 }
 
 func (f *IntSyncStateForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES
+	// not used
 }
 
 func (f *ClsSyncStateForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
-	// todo JAMES
+	// not used
+}
+
+func (f *BoomSafeForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	// not used
+}
+
+func (f *BoomForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	// not used
+}
+
+func (f *BoomInForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
+	// not used
 }
 
 func (f *SplitForm) TransitionNP(process *Process, re *RuntimeEnvironment) {
